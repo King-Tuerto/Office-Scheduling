@@ -33,6 +33,51 @@
         .info-box strong { display: block; margin-bottom: 8px; color: #2c5282; }
         .info-box ul { margin-left: 20px; }
         .info-box li { margin: 5px 0; color: #2c5282; }
+        .available-dates {
+            background: #f0fff4;
+            border: 2px solid #9ae6b4;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .available-dates h3 {
+            color: #22543d;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }
+        .date-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }
+        .date-btn {
+            background: white;
+            border: 2px solid #48bb78;
+            padding: 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+        .date-btn:hover {
+            background: #c6f6d5;
+            border-color: #38a169;
+            transform: translateY(-2px);
+        }
+        .date-btn.selected {
+            background: #48bb78;
+            color: white;
+            border-color: #38a169;
+        }
+        .date-btn-date {
+            font-weight: 600;
+            font-size: 1.1em;
+            margin-bottom: 4px;
+        }
+        .date-btn-info {
+            font-size: 0.85em;
+            opacity: 0.8;
+        }
         .form-group { margin-bottom: 20px; }
         label { display: block; font-weight: 600; margin-bottom: 8px; color: #2d3748; }
         input, select {
@@ -189,6 +234,11 @@
             background: #cbd5e0;
             cursor: not-allowed;
         }
+        .no-dates {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+        }
     </style>
 </head>
 <body>
@@ -208,13 +258,15 @@
 
         <div id="message"></div>
 
-        <div class="form-group">
-            <label>Select Date</label>
-            <input type="date" id="dateSelect" min="">
+        <div class="available-dates">
+            <h3>📆 Available Office Hours Dates</h3>
+            <div id="availableDatesList" class="date-buttons">
+                <div class="loading">Loading available dates...</div>
+            </div>
         </div>
 
         <div id="slotsSection" style="display: none;">
-            <h3 style="margin-bottom: 15px; color: #2d3748;">Available Slots</h3>
+            <h3 style="margin-bottom: 15px; color: #2d3748;">Available Time Slots</h3>
             <div id="slotsContainer" class="slots-container"></div>
             <button class="btn" id="bookBtn" style="margin-top: 20px;" disabled>Book Selected Slot(s)</button>
         </div>
@@ -277,16 +329,59 @@
         let selectedSlots = [];
         let selectedDate = '';
         let myBookings = [];
+        let availableDates = [];
 
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 1);
-        document.getElementById('dateSelect').min = tomorrow.toISOString().split('T')[0];
+        async function loadAvailableDates() {
+            try {
+                const tomorrow = new Date();
+                tomorrow.setDate(tomorrow.getDate() + 1);
+                const tomorrowStr = tomorrow.toISOString().split('T')[0];
 
-        document.getElementById('dateSelect').addEventListener('change', async (e) => {
-            selectedDate = e.target.value;
+                const { data, error } = await supabase
+                    .from('available_slots')
+                    .select('slot_date')
+                    .gte('slot_date', tomorrowStr)
+                    .order('slot_date');
+
+                if (error) throw error;
+
+                const uniqueDates = [...new Set(data.map(d => d.slot_date))];
+                availableDates = uniqueDates;
+                renderAvailableDates();
+            } catch (error) {
+                document.getElementById('availableDatesList').innerHTML = 
+                    '<div class="no-dates">Error loading dates. Please refresh the page.</div>';
+            }
+        }
+
+        function renderAvailableDates() {
+            const container = document.getElementById('availableDatesList');
+            
+            if (availableDates.length === 0) {
+                container.innerHTML = '<div class="no-dates">No office hours currently scheduled. Check back later!</div>';
+                return;
+            }
+
+            container.innerHTML = availableDates.map(date => {
+                const dateObj = new Date(date + 'T00:00:00');
+                const dayName = dateObj.toLocaleDateString('en-US', { weekday: 'long' });
+                const dateStr = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+                
+                return `
+                    <div class="date-btn ${selectedDate === date ? 'selected' : ''}" onclick="selectDate('${date}')">
+                        <div class="date-btn-date">${dayName}</div>
+                        <div class="date-btn-info">${dateStr}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        async function selectDate(date) {
+            selectedDate = date;
             selectedSlots = [];
+            renderAvailableDates();
             await loadSlots();
-        });
+        }
 
         document.getElementById('bookBtn').addEventListener('click', () => {
             document.getElementById('bookingModal').classList.add('active');
@@ -547,8 +642,8 @@
             return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
         }
 
+        loadAvailableDates();
         loadMyBookings();
     </script>
 </body>
 </html>
- 
