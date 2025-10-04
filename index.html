@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Office Hours Booking</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            padding: 30px;
+        }
+        h1 { color: #2d3748; margin-bottom: 10px; font-size: 2em; }
+        .subtitle { color: #718096; margin-bottom: 25px; }
+        .info-box {
+            background: #ebf8ff;
+            border-left: 4px solid #3182ce;
+            padding: 15px;
+            margin-bottom: 25px;
+            border-radius: 4px;
+        }
+        .info-box strong { display: block; margin-bottom: 8px; color: #2c5282; }
+        .info-box ul { margin-left: 20px; }
+        .info-box li { margin: 5px 0; color: #2c5282; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; font-weight: 600; margin-bottom: 8px; color: #2d3748; }
+        input, select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+        input:focus, select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+        .slots-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+            margin: 20px 0;
+        }
+        .slot {
+            padding: 15px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .slot.available {
+            background: #f0fff4;
+            border-color: #9ae6b4;
+        }
+        .slot.available:hover {
+            background: #c6f6d5;
+            border-color: #68d391;
+            transform: translateY(-2px);
+        }
+        .slot.selected {
+            background: #667eea;
+            border-color: #667eea;
+            color: white;
+        }
+        .slot.booked {
+            background: #f7fafc;
+            border-color: #cbd5e0;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+        .slot-time { font-weight: 600; font-size: 1.1em; }
+        .slot-status { font-size: 0.85em; margin-top: 5px; }
+        .btn {
+            background: #667eea;
+            color: white;
+            padding: 14px 28px;
+            border: none;
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.3s;
+            width: 100%;
+        }
+        .btn:hover { background: #5a67d8; }
+        .btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: #718096;
+        }
+        .time-inputs {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 10px;
+        }
+        .success-msg, .error-msg {
+            padding: 12px;
+            border-radius: 6px;
+            margin: 15px 0;
+        }
+        .success-msg {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 1px solid #9ae6b4;
+        }
+        .error-msg {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 1px solid #fc8181;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #718096;
+        }
+        .my-bookings {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 2px solid #e2e8f0;
+        }
+        .booking-card {
+            background: #f7fafc;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .cancel-btn {
+            background: #fc8181;
+            color: white;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .cancel-btn:hover { background: #f56565; }
+        .cancel-btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📅 Office Hours Booking</h1>
+        <p class="subtitle">Select available time slots to meet with your professor</p>
+
+        <div class="info-box">
+            <strong>📌 Important Notes:</strong>
+            <ul>
+                <li>Bookings must be made at least 24 hours in advance</li>
+                <li>You may book up to 1 hour (two consecutive 30-min slots) per day</li>
+                <li>To cancel, you must do so at least 24 hours before your appointment</li>
+                <li>Feel free to stop by during office hours - if I'm available and not with another student, I'm glad to meet!</li>
+            </ul>
+        </div>
+
+        <div id="message"></div>
+
+        <div class="form-group">
+            <label>Select Date</label>
+            <input type="date" id="dateSelect" min="">
+        </div>
+
+        <div id="slotsSection" style="display: none;">
+            <h3 style="margin-bottom: 15px; color: #2d3748;">Available Slots</h3>
+            <div id="slotsContainer" class="slots-container"></div>
+            <button class="btn" id="bookBtn" style="margin-top: 20px;" disabled>Book Selected Slot(s)</button>
+        </div>
+
+        <div class="my-bookings" id="myBookingsSection" style="display: none;">
+            <h3 style="margin-bottom: 15px; color: #2d3748;">My Bookings</h3>
+            <div id="myBookingsList"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="bookingModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 style="color: #2d3748;">Complete Your Booking</h2>
+                <button class="close-btn" onclick="closeModal()">×</button>
+            </div>
+            <form id="bookingForm">
+                <div class="form-group">
+                    <label>Full Name *</label>
+                    <input type="text" id="studentName" required>
+                </div>
+                <div class="form-group">
+                    <label>Class Time *</label>
+                    <div class="time-inputs">
+                        <select id="classHour" required>
+                            <option value="">Select Hour</option>
+                            <option value="1">1</option>
+                            <option value="2">2</option>
+                            <option value="3">3</option>
+                            <option value="4">4</option>
+                            <option value="5">5</option>
+                            <option value="6">6</option>
+                            <option value="7">7</option>
+                            <option value="8">8</option>
+                            <option value="9">9</option>
+                            <option value="10">10</option>
+                            <option value="11">11</option>
+                            <option value="12">12</option>
+                        </select>
+                        <select id="classPeriod" required>
+                            <option value="AM">AM</option>
+                            <option value="PM">PM</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Phone Number *</label>
+                    <input type="tel" id="phoneNumber" required placeholder="(555) 123-4567">
+                </div>
+                <button type="submit" class="btn">Confirm Booking</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://vlbgfdabkmaykwzkidom.supabase.co';
+        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsYmdmZGFia21heWt3emtpZG9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MDU2MzIsImV4cCI6MjA3NTE4MTYzMn0.ZW8myPbVweQruU6jyV59dCbYZQlXKZ_RpFipe4hQGkw';
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        let selectedSlots = [];
+        let selectedDate = '';
+        let myBookings = [];
+
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        document.getElementById('dateSelect').min = tomorrow.toISOString().split('T')[0];
+
+        document.getElementById('dateSelect').addEventListener('change', async (e) => {
+            selectedDate = e.target.value;
+            selectedSlots = [];
+            await loadSlots();
+        });
+
+        document.getElementById('bookBtn').addEventListener('click', () => {
+            document.getElementById('bookingModal').classList.add('active');
+        });
+
+        document.getElementById('bookingForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            await createBooking();
+        });
+
+        function closeModal() {
+            document.getElementById('bookingModal').classList.remove('active');
+        }
+
+        async function loadSlots() {
+            if (!selectedDate) return;
+
+            const slotsContainer = document.getElementById('slotsContainer');
+            slotsContainer.innerHTML = '<div class="loading">Loading slots...</div>';
+            document.getElementById('slotsSection').style.display = 'block';
+
+            try {
+                const { data: availableBlocks, error: blocksError } = await supabase
+                    .from('available_slots')
+                    .select('*')
+                    .eq('slot_date', selectedDate);
+
+                if (blocksError) throw blocksError;
+
+                const { data: bookings, error: bookingsError } = await supabase
+                    .from('bookings')
+                    .select('*')
+                    .eq('booking_date', selectedDate);
+
+                if (bookingsError) throw bookingsError;
+
+                const slots = generateTimeSlots(availableBlocks, bookings);
+                renderSlots(slots);
+            } catch (error) {
+                showMessage('Error loading slots: ' + error.message, 'error');
+            }
+        }
+
+        function generateTimeSlots(availableBlocks, bookings) {
+            const slots = [];
+            
+            availableBlocks.forEach(block => {
+                const start = parseTime(block.start_time);
+                const end = parseTime(block.end_time);
+                let current = start;
+
+                while (current < end) {
+                    const timeStr = formatTimeForDisplay(current);
+                    const isBooked = bookings.some(b => b.booking_time === formatTime24(current));
+                    
+                    slots.push({
+                        time: formatTime24(current),
+                        display: timeStr,
+                        available: !isBooked
+                    });
+
+                    current = addMinutes(current, 30);
+                }
+            });
+
+            return slots.sort((a, b) => a.time.localeCompare(b.time));
+        }
+
+        function renderSlots(slots) {
+            const container = document.getElementById('slotsContainer');
+            
+            if (slots.length === 0) {
+                container.innerHTML = '<p style="text-align: center; color: #718096; padding: 20px;">No office hours available for this date.</p>';
+                return;
+            }
+
+            container.innerHTML = slots.map(slot => `
+                <div class="slot ${slot.available ? 'available' : 'booked'}" 
+                     data-time="${slot.time}"
+                     onclick="${slot.available ? 'toggleSlot(this)' : ''}">
+                    <div class="slot-time">${slot.display}</div>
+                    <div class="slot-status">${slot.available ? 'Available' : 'Booked'}</div>
+                </div>
+            `).join('');
+        }
+
+        function toggleSlot(element) {
+            const time = element.dataset.time;
+            
+            if (element.classList.contains('selected')) {
+                element.classList.remove('selected');
+                selectedSlots = selectedSlots.filter(t => t !== time);
+            } else {
+                if (selectedSlots.length >= 2) {
+                    showMessage('You can only book up to 1 hour (2 slots) per day', 'error');
+                    return;
+                }
+                
+                if (selectedSlots.length === 1) {
+                    if (!areConsecutive(selectedSlots[0], time)) {
+                        showMessage('Slots must be consecutive (e.g., 2:00 PM and 2:30 PM)', 'error');
+                        return;
+                    }
+                }
+                
+                element.classList.add('selected');
+                selectedSlots.push(time);
+                selectedSlots.sort();
+            }
+
+            document.getElementById('bookBtn').disabled = selectedSlots.length === 0;
+        }
+
+        function areConsecutive(time1, time2) {
+            const t1 = parseTime(time1);
+            const t2 = parseTime(time2);
+            const diff = Math.abs(t1 - t2);
+            return diff === 30 * 60 * 1000;
+        }
+
+        async function createBooking() {
+            const name = document.getElementById('studentName').value;
+            const hour = document.getElementById('classHour').value;
+            const period = document.getElementById('classPeriod').value;
+            const phone = document.getElementById('phoneNumber').value;
+            const classTime = `${hour} ${period}`;
+
+            try {
+                const bookingsToCreate = selectedSlots.map(time => ({
+                    student_name: name,
+                    class_time: classTime,
+                    phone_number: phone,
+                    booking_date: selectedDate,
+                    booking_time: time,
+                    is_admin_block: false
+                }));
+
+                const { error } = await supabase
+                    .from('bookings')
+                    .insert(bookingsToCreate);
+
+                if (error) throw error;
+
+                showMessage('✅ Booking confirmed! See you then.', 'success');
+                closeModal();
+                document.getElementById('bookingForm').reset();
+                selectedSlots = [];
+                await loadSlots();
+                await loadMyBookings();
+            } catch (error) {
+                showMessage('Error creating booking: ' + error.message, 'error');
+            }
+        }
+
+        async function loadMyBookings() {
+            try {
+                const { data, error } = await supabase
+                    .from('bookings')
+                    .select('*')
+                    .eq('is_admin_block', false)
+                    .gte('booking_date', new Date().toISOString().split('T')[0])
+                    .order('booking_date')
+                    .order('booking_time');
+
+                if (error) throw error;
+
+                myBookings = data || [];
+                renderMyBookings();
+            } catch (error) {
+                console.error('Error loading bookings:', error);
+            }
+        }
+
+        function renderMyBookings() {
+            const section = document.getElementById('myBookingsSection');
+            const list = document.getElementById('myBookingsList');
+
+            if (myBookings.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = myBookings.map(booking => {
+                const canCancel = canCancelBooking(booking.booking_date, booking.booking_time);
+                return `
+                    <div class="booking-card">
+                        <div>
+                            <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTimeForDisplay(parseTime(booking.booking_time))}</strong>
+                            <div style="font-size: 0.9em; color: #718096; margin-top: 5px;">
+                                ${booking.student_name} | Class: ${booking.class_time}
+                            </div>
+                        </div>
+                        <button class="cancel-btn" 
+                                onclick="cancelBooking('${booking.id}')"
+                                ${!canCancel ? 'disabled' : ''}>
+                            ${canCancel ? 'Cancel' : 'Too Late'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function canCancelBooking(date, time) {
+            const bookingDateTime = new Date(date + 'T' + time);
+            const now = new Date();
+            const hoursDiff = (bookingDateTime - now) / (1000 * 60 * 60);
+            return hoursDiff >= 24;
+        }
+
+        async function cancelBooking(id) {
+            if (!confirm('Are you sure you want to cancel this booking?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('bookings')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                showMessage('Booking cancelled successfully', 'success');
+                await loadMyBookings();
+                if (selectedDate) await loadSlots();
+            } catch (error) {
+                showMessage('Error cancelling booking: ' + error.message, 'error');
+            }
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.className = type === 'error' ? 'error-msg' : 'success-msg';
+            msg.textContent = text;
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 5000);
+        }
+
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const date = new Date();
+            date.setHours(hours, minutes, 0, 0);
+            return date;
+        }
+
+        function addMinutes(date, minutes) {
+            return new Date(date.getTime() + minutes * 60000);
+        }
+
+        function formatTime24(date) {
+            return date.toTimeString().slice(0, 5);
+        }
+
+        function formatTimeForDisplay(date) {
+            let hours = date.getHours();
+            const minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+        }
+
+        loadMyBookings();
+    </script>
+</body>
+</html>
