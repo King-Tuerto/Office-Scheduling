@@ -211,39 +211,6 @@
             padding: 20px;
             color: #718096;
         }
-        #myBookingsSection {
-            margin-top: 40px;
-        }
-        #myBookingsSection h3 {
-            margin-bottom: 15px;
-            color: #2d3748;
-        }
-        .booking-card {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 15px;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            margin-bottom: 10px;
-            background: #f7fafc;
-        }
-        .cancel-btn {
-            background: #ef4444;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-        }
-        .cancel-btn:hover {
-            background: #dc2626;
-        }
-        .cancel-btn:disabled {
-            background: #cbd5e0;
-            cursor: not-allowed;
-        }
     </style>
 </head>
 <body>
@@ -274,11 +241,6 @@
             <h3 style="margin-bottom: 15px; color: #2d3748;">Available Time Slots</h3>
             <div id="slotsContainer" class="slots-container"></div>
             <button class="btn" id="bookBtn" style="margin-top: 20px;" disabled>Book Selected Slot(s)</button>
-        </div>
-
-        <div id="myBookingsSection" style="display: none;">
-            <h3 style="margin-bottom: 15px; color: #2d3748;">My Bookings</h3>
-            <div id="myBookingsList"></div>
         </div>
     </div>
 
@@ -334,7 +296,6 @@
         let selectedSlots = [];
         let selectedDate = '';
         let availableDates = [];
-        let myBookings = [];
 
         async function loadAvailableDates() {
             try {
@@ -534,85 +495,12 @@
                 closeModal();
                 document.getElementById('bookingForm').reset();
                 selectedSlots = [];
-                await loadSlots();
-                await loadMyBookings();
+                // Small delay to ensure DB consistency
+                setTimeout(async () => {
+                    await loadSlots();
+                }, 500);
             } catch (error) {
                 showMessage('Error creating booking: ' + error.message, 'error');
-            }
-        }
-
-        async function loadMyBookings() {
-            try {
-                const { data, error } = await supabase
-                    .from('bookings')
-                    .select('*')
-                    .eq('is_admin_block', false)
-                    .gte('booking_date', new Date().toISOString().split('T')[0])
-                    .order('booking_date')
-                    .order('booking_time');
-
-                if (error) throw error;
-
-                myBookings = data || [];
-                renderMyBookings();
-            } catch (error) {
-                console.error('Error loading bookings:', error);
-            }
-        }
-
-        function renderMyBookings() {
-            const section = document.getElementById('myBookingsSection');
-            const list = document.getElementById('myBookingsList');
-
-            if (myBookings.length === 0) {
-                section.style.display = 'none';
-                return;
-            }
-
-            section.style.display = 'block';
-            list.innerHTML = myBookings.map(booking => {
-                const canCancel = canCancelBooking(booking.booking_date, booking.booking_time);
-                return `
-                    <div class="booking-card">
-                        <div>
-                            <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTimeForDisplay(parseTime(booking.booking_time))}</strong>
-                            <div style="font-size: 0.9em; color: #718096; margin-top: 5px;">
-                                ${booking.student_name} | Class: ${booking.class_time}
-                            </div>
-                        </div>
-                        <button class="cancel-btn" 
-                                onclick="cancelBooking('${booking.id}')"
-                                ${!canCancel ? 'disabled' : ''}>
-                            ${canCancel ? 'Cancel' : 'Too Late'}
-                        </button>
-                    </div>
-                `;
-            }).join('');
-        }
-
-        function canCancelBooking(date, time) {
-            const bookingDateTime = new Date(date + 'T' + time);
-            const now = new Date();
-            const hoursDiff = (bookingDateTime - now) / (1000 * 60 * 60);
-            return hoursDiff >= 24;
-        }
-
-        async function cancelBooking(id) {
-            if (!confirm('Are you sure you want to cancel this booking?')) return;
-
-            try {
-                const { error } = await supabase
-                    .from('bookings')
-                    .delete()
-                    .eq('id', id);
-
-                if (error) throw error;
-
-                showMessage('Booking cancelled successfully', 'success');
-                await loadMyBookings();
-                if (selectedDate) await loadSlots();
-            } catch (error) {
-                showMessage('Error cancelling booking: ' + error.message, 'error');
             }
         }
 
@@ -648,7 +536,6 @@
         }
 
         loadAvailableDates();
-        loadMyBookings();
     </script>
 </body>
 </html>
