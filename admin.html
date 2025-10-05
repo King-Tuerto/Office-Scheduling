@@ -171,9 +171,6 @@
         #confirmModal {
             display: none;
             position: fixed;
-            top: 20px;
-            left: 50%;
-            transform: translateX(-50%);
             background: white;
             padding: 20px;
             border-radius: 8px;
@@ -283,16 +280,34 @@
     const ADMIN_CODE = '3912';
 
     let currentConfirmAction = null;
+    let currentConfirmButton = null;
 
-    function showConfirm(message, action) {
+    function showConfirm(message, action, button = null) {
         document.getElementById('confirmText').textContent = message;
         currentConfirmAction = action;
-        document.getElementById('confirmModal').style.display = 'block';
+        currentConfirmButton = button;
+        const modal = document.getElementById('confirmModal');
+        modal.style.display = 'block';
+
+        if (button) {
+            const rect = button.getBoundingClientRect();
+            modal.style.position = 'fixed';
+            modal.style.top = (rect.bottom + 5) + 'px';
+            modal.style.left = rect.left + 'px';
+            modal.style.transform = 'none';
+            modal.style.zIndex = '1000';
+        } else {
+            modal.style.position = 'fixed';
+            modal.style.top = '20px';
+            modal.style.left = '50%';
+            modal.style.transform = 'translateX(-50%)';
+        }
     }
 
     function hideConfirm() {
         document.getElementById('confirmModal').style.display = 'none';
         currentConfirmAction = null;
+        currentConfirmButton = null;
     }
 
     document.getElementById('confirmYes').onclick = function() {
@@ -448,7 +463,7 @@
 
                         <small>${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}</small>
                     </div>
-                    <button class="delete-slot-btn" onclick="deleteSlot('${slot.id}')">Delete</button>
+                    <button class="delete-slot-btn" onclick="deleteSlot('${slot.id}', this)">Delete</button>
                 </div>
             `).join('');
         } catch (error) {
@@ -456,7 +471,7 @@
         }
     }
 
-    async function deleteSlot(id) {
+    async function deleteSlot(id, button) {
         showConfirm('Delete this time block? This will also cancel any bookings in this time.', async () => {
             try {
                 const { error } = await supabase
@@ -471,7 +486,7 @@
             } catch (error) {
                 showMessage('Error deleting slot: ' + error.message, 'error');
             }
-        });
+        }, button);
     }
 
     async function loadBookings() {
@@ -526,7 +541,7 @@
                                         <small>Phone: ${booking.phone_number}</small>
                                     ` : ''}
                                 </div>
-                                <button class="btn-danger" onclick="cancelBooking('${booking.id}')">
+                                <button class="btn-danger" onclick="cancelBooking('${booking.id}', this)">
                                     ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
                                 </button>
                             </div>
@@ -539,7 +554,7 @@
         }
     }
 
-    async function cancelBooking(id) {
+    async function cancelBooking(id, button) {
         showConfirm('Are you sure?', async () => {
             try {
                 const { error } = await supabase
@@ -554,7 +569,7 @@
             } catch (error) {
                 showMessage('Error cancelling booking: ' + error.message, 'error');
             }
-        });
+        }, button);
     }
 
     async function loadAllData() {
@@ -598,5 +613,4 @@
 </script>
 </body>
 </html>
-
 
