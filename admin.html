@@ -546,26 +546,47 @@
                     day: 'numeric' 
                 });
                 const shortDate = dateObj.toLocaleDateString();
-                const bookingsForDate = grouped[dateKey];
+                let bookingsForDate = grouped[dateKey];
+                bookingsForDate.sort((a, b) => a.booking_time.localeCompare(b.booking_time));
+
+                let merged = [];
+                if (bookingsForDate.length > 0) {
+                    let current = { ...bookingsForDate[0], ids: [bookingsForDate[0].id], start: bookingsForDate[0].booking_time, end: add30min(bookingsForDate[0].booking_time) };
+                    for (let i = 1; i < bookingsForDate.length; i++) {
+                        let b = bookingsForDate[i];
+                        let expectedNext = add30min(current.end);
+                        if (b.student_name === current.student_name && b.is_admin_block === current.is_admin_block && b.booking_time === expectedNext) {
+                            current.end = add30min(b.booking_time);
+                            current.ids.push(b.id);
+                        } else {
+                            merged.push(current);
+                            current = { ...b, ids: [b.id], start: b.booking_time, end: add30min(b.booking_time) };
+                        }
+                    }
+                    merged.push(current);
+                }
 
                 return `
                     <div class="date-header">${formattedDate}</div>
-                    ${bookingsForDate.map(booking => {
-                        const endTime = add30min(booking.booking_time);
-                        const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
+                    ${merged.map(m => {
+                        const isAdmin = m.is_admin_block;
+                        const emailLink = m.email ? `<small><a href="mailto:${m.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${m.email}</a></small>` : '<small>Email: N/A</small>';
+                        const details = !isAdmin ? `
+                            ${emailLink}
+                            <small>Class Time: ${m.class_time}</small>
+                            <small>Phone: ${m.phone_number}</small>
+                        ` : '';
+                        const buttonText = isAdmin ? 'Unblock' : 'Cancel';
+                        const idsStr = m.ids.length > 1 ? JSON.stringify(m.ids) : `'${m.id}'`;
                         return `
                             <div class="booking-card">
                                 <div class="booking-info">
-                                    <strong>${booking.is_admin_block ? ' BLOCKED - ' : ''}${booking.student_name}</strong>
-                                    <strong>${shortDate} from ${formatTime(booking.booking_time)} to ${formatTime(endTime)}</strong>
-                                    ${!booking.is_admin_block ? `
-                                        ${emailLink}
-                                        <small>Class Time: ${booking.class_time}</small>
-                                        <small>Phone: ${booking.phone_number}</small>
-                                    ` : ''}
+                                    <strong>${isAdmin ? ' BLOCKED - ' : ''}${m.student_name}</strong>
+                                    <strong>${shortDate} from ${formatTime(m.start)} to ${formatTime(m.end)}</strong>
+                                    ${details}
                                 </div>
-                                <button class="btn-danger" onclick="cancelBooking('${booking.id}', this)">
-                                    ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
+                                <button class="btn-danger" onclick="cancelBooking(${idsStr}, this)">
+                                    ${buttonText}
                                 </button>
                             </div>
                         `;
@@ -577,20 +598,33 @@
         }
     }
 
-    async function cancelBooking(id, button) {
-        showConfirm('Are you sure?', async () => {
+    async function cancelBooking(idOrIds, button) {
+        let confirmMsg = 'Are you sure?';
+        if (Array.isArray(idOrIds)) {
+            confirmMsg = `Are you sure you want to cancel/unblock this block? (${idOrIds.length} slots)`;
+        }
+        showConfirm(confirmMsg, async () => {
             try {
-                const { error } = await supabase
-                    .from('bookings')
-                    .delete()
-                    .eq('id', id);
-
-                if (error) throw error;
-
-                showMessage('Booking cancelled', 'success');
+                if (Array.isArray(idOrIds)) {
+                    for (let id of idOrIds) {
+                        const { error } = await supabase
+                            .from('bookings')
+                            .delete()
+                            .eq('id', id);
+                        if (error) throw error;
+                    }
+                    showMessage('Block cancelled/unblocked', 'success');
+                } else {
+                    const { error } = await supabase
+                        .from('bookings')
+                        .delete()
+                        .eq('id', idOrIds);
+                    if (error) throw error;
+                    showMessage('Booking cancelled', 'success');
+                }
                 await loadBookings();
             } catch (error) {
-                showMessage('Error cancelling booking: ' + error.message, 'error');
+                showMessage('Error: ' + error.message, 'error');
             }
         }, button);
     }
