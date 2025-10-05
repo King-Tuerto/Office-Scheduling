@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -89,8 +88,6 @@
         .btn-danger:hover { background: #f56565; }
         .bookings-list {
             margin-top: 20px;
-            max-height: 400px;
-            overflow-y: auto;
         }
         .booking-card {
             background: white;
@@ -183,409 +180,365 @@
         <div id="loginError" style="display: none; margin-top: 15px;"></div>
     </div>
 
-    <div id="adminPanel" style="display: none;">
-        <div class="container">
-            <button class="logout-btn" onclick="logout()">Logout</button>
-            <h1>🔧 Admin Panel</h1>
-            <p class="subtitle">Manage your office hours and bookings</p>
+<div id="adminPanel" style="display: none;">
+    <div class="container">
+        <button class="logout-btn" onclick="logout()">Logout</button>
+        <h1> Admin Panel</h1>
+        <p class="subtitle">Manage your office hours and bookings</p>
 
-            <div id="message"></div>
+        <div id="message"></div>
 
-            <div class="grid">
-                <div class="card">
-                    <h3>📅 Add Available Time Block</h3>
-                    <div class="form-group">
-                        <label>Date</label>
-                        <input type="date" id="slotDate">
-                    </div>
-                    <div class="time-row">
-                        <div class="form-group">
-                            <label>Start Time</label>
-                            <input type="time" id="startTime">
-                        </div>
-                        <div class="form-group">
-                            <label>End Time</label>
-                            <input type="time" id="endTime">
-                        </div>
-                    </div>
-                    <button onclick="addTimeBlock()" class="btn btn-success">Add Time Block</button>
-                    
-                    <div class="slots-list" id="slotsList" style="margin-top: 20px;"></div>
+        <div class="grid">
+            <div class="card">
+                <h3> Add Available Time Block</h3>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="slotDate">
                 </div>
-
-                <div class="card">
-                    <h3>🚫 Block Time Range for Myself</h3>
+                <div class="time-row">
                     <div class="form-group">
-                        <label>Date</label>
-                        <input type="date" id="blockDate">
-                    </div>
-                    <div class="time-row">
-                        <div class="form-group">
-                            <label>Start Time</label>
-                            <input type="time" id="blockStartTime">
-                        </div>
-                        <div class="form-group">
-                            <label>End Time</label>
-                            <input type="time" id="blockEndTime">
-                        </div>
+                        <label>Start Time</label>
+                        <input type="time" id="startTime">
                     </div>
                     <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="outOfOffice"> Out of Office
-                        </label>
+                        <label>End Time</label>
+                        <input type="time" id="endTime">
                     </div>
-                    <button onclick="blockTimeRange()" class="btn btn-warning">Block This Range</button>
                 </div>
+                <button onclick="addTimeBlock()" class="btn btn-success">Add Time Block</button>
+                
+                <div class="slots-list" id="slotsList" style="margin-top: 20px;"></div>
             </div>
 
             <div class="card">
-                <h3>📋 All Bookings</h3>
-                <div class="bookings-list" id="bookingsList"></div>
+                <h3> Block Time Range for Myself</h3>
+                <div class="form-group">
+                    <label>Date</label>
+                    <input type="date" id="blockDate">
+                </div>
+                <div class="time-row">
+                    <div class="form-group">
+                        <label>Start Time</label>
+                        <input type="time" id="blockStartTime">
+                    </div>
+                    <div class="form-group">
+                        <label>End Time</label>
+                        <input type="time" id="blockEndTime">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="outOfOffice"> Out of Office
+                    </label>
+                </div>
+                <button onclick="blockTimeRange()" class="btn btn-warning">Block This Range</button>
             </div>
         </div>
+
+        <div class="card">
+            <h3> All Bookings</h3>
+            <div class="bookings-list" id="bookingsList"></div>
+        </div>
     </div>
+</div>
 
-    <script>
-        const SUPABASE_URL = 'https://vlbgfdabkmaykwzkidom.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsYmdmZGFia21heWt3emtpZG9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MDU2MzIsImV4cCI6MjA3NTE4MTYzMn0.ZW8myPbVweQruU6jyV59dCbYZQlXKZ_RpFipe4hQGkw';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
-        const ADMIN_CODE = '3912';
+<script>
+    const SUPABASE_URL = 'https://vlbgfdabkmaykwzkidom.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsYmdmZGFia21heWt3emtpZG9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MDU2MzIsImV4cCI6MjA3NTE4MTYzMn0.ZW8myPbVweQruU6jyV59dCbYZQlXKZ_RpFipe4hQGkw';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+    const ADMIN_CODE = '3912';
 
-        if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+    if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+        showAdminPanel();
+    }
+
+    function login() {
+        const code = document.getElementById('accessCode').value;
+        
+        if (code === ADMIN_CODE) {
+            sessionStorage.setItem('adminLoggedIn', 'true');
             showAdminPanel();
+        } else {
+            const error = document.getElementById('loginError');
+            error.className = 'error-msg';
+            error.textContent = 'Invalid access code';
+            error.style.display = 'block';
+        }
+    }
+
+    function showAdminPanel() {
+        document.getElementById('loginScreen').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        loadAllData();
+    }
+
+    function logout() {
+        sessionStorage.removeItem('adminLoggedIn');
+        location.reload();
+    }
+
+    async function addTimeBlock() {
+        const date = document.getElementById('slotDate').value;
+        const startTime = document.getElementById('startTime').value;
+        const endTime = document.getElementById('endTime').value;
+
+        if (!date || !startTime || !endTime) {
+            showMessage('Please fill in all fields', 'error');
+            return;
         }
 
-        function login() {
-            const code = document.getElementById('accessCode').value;
+        if (startTime >= endTime) {
+            showMessage('End time must be after start time', 'error');
+            return;
+        }
+
+        try {
+            const { error } = await supabase
+                .from('available_slots')
+                .insert({
+                    slot_date: date,
+                    start_time: startTime,
+                    end_time: endTime
+                });
+
+            if (error) throw error;
+
+            showMessage(' Time block added successfully', 'success');
+            document.getElementById('slotDate').value = '';
+            document.getElementById('startTime').value = '';
+            document.getElementById('endTime').value = '';
+            await loadAvailableSlots();
+        } catch (error) {
+            showMessage('Error adding time block: ' + error.message, 'error');
+        }
+    }
+
+    async function blockTimeRange() {
+        const date = document.getElementById('blockDate').value;
+        const startTime = document.getElementById('blockStartTime').value;
+        const endTime = document.getElementById('blockEndTime').value;
+        const isOutOfOffice = document.getElementById('outOfOffice').checked;
+
+        if (!date || !startTime || !endTime) {
+            showMessage('Please fill in all fields', 'error');
+            return;
+        }
+
+        if (startTime >= endTime) {
+            showMessage('End time must be after start time', 'error');
+            return;
+        }
+
+        try {
+            // Generate 30-min slots between start and end
+            const start = parseTime(startTime);
+            const end = parseTime(endTime);
+            let current = start;
+            const blocksToInsert = [];
+
+            while (current < end) {
+                const slotTime = formatTime24(current);
+                blocksToInsert.push({
+                    student_name: isOutOfOffice ? 'Out of Office' : 'ADMIN BLOCK',
+                    email: 'N/A',
+                    class_time: 'N/A',
+                    phone_number: 'N/A',
+                    booking_date: date,
+                    booking_time: slotTime,
+                    is_admin_block: true
+                });
+                current = addMinutes(current, 30);
+            }
+
+            const { error } = await supabase
+                .from('bookings')
+                .insert(blocksToInsert);
+
+            if (error) throw error;
+
+            showMessage(` ${blocksToInsert.length} slot(s) blocked successfully`, 'success');
+            document.getElementById('blockDate').value = '';
+            document.getElementById('blockStartTime').value = '';
+            document.getElementById('blockEndTime').value = '';
+            document.getElementById('outOfOffice').checked = false;
+            await loadBookings();
+        } catch (error) {
+            showMessage('Error blocking range: ' + error.message, 'error');
+        }
+    }
+
+    async function loadAvailableSlots() {
+        try {
+            const { data, error } = await supabase
+                .from('available_slots')
+                .select('*')
+                .gte('slot_date', new Date().toISOString().split('T')[0])
+                .order('slot_date')
+                .order('start_time');
+
+            if (error) throw error;
+
+            const list = document.getElementById('slotsList');
             
-            if (code === ADMIN_CODE) {
-                sessionStorage.setItem('adminLoggedIn', 'true');
-                showAdminPanel();
-            } else {
-                const error = document.getElementById('loginError');
-                error.className = 'error-msg';
-                error.textContent = 'Invalid access code';
-                error.style.display = 'block';
-            }
-        }
-
-        function showAdminPanel() {
-            document.getElementById('loginScreen').style.display = 'none';
-            document.getElementById('adminPanel').style.display = 'block';
-            loadAllData();
-        }
-
-        function logout() {
-            sessionStorage.removeItem('adminLoggedIn');
-            location.reload();
-        }
-
-        async function addTimeBlock() {
-            const date = document.getElementById('slotDate').value;
-            const startTime = document.getElementById('startTime').value;
-            const endTime = document.getElementById('endTime').value;
-
-            if (!date || !startTime || !endTime) {
-                showMessage('Please fill in all fields', 'error');
+            if (!data || data.length === 0) {
+                list.innerHTML = '<p style="color: #718096; padding: 10px; text-align: center;">No time blocks scheduled</p>';
                 return;
             }
 
-            if (startTime >= endTime) {
-                showMessage('End time must be after start time', 'error');
-                return;
-            }
+            list.innerHTML = data.map(slot => `
+                <div class="slot-card">
+                    <div>
+                        <strong>${new Date(slot.slot_date + 'T00:00:00').toLocaleDateString()}</strong>
 
-            try {
-                const { error } = await supabase
-                    .from('available_slots')
-                    .insert({
-                        slot_date: date,
-                        start_time: startTime,
-                        end_time: endTime
-                    });
-
-                if (error) throw error;
-
-                showMessage('✅ Time block added successfully', 'success');
-                document.getElementById('slotDate').value = '';
-                document.getElementById('startTime').value = '';
-                document.getElementById('endTime').value = '';
-                await loadAvailableSlots();
-            } catch (error) {
-                showMessage('Error adding time block: ' + error.message, 'error');
-            }
-        }
-
-        async function blockTimeRange() {
-            const date = document.getElementById('blockDate').value;
-            const startTime = document.getElementById('blockStartTime').value;
-            const endTime = document.getElementById('blockEndTime').value;
-            const isOutOfOffice = document.getElementById('outOfOffice').checked;
-
-            if (!date || !startTime || !endTime) {
-                showMessage('Please fill in all fields', 'error');
-                return;
-            }
-
-            if (startTime >= endTime) {
-                showMessage('End time must be after start time', 'error');
-                return;
-            }
-
-            try {
-                // Generate 30-min slots between start and end
-                const start = parseTime(startTime);
-                const end = parseTime(endTime);
-                let current = start;
-                const blocksToInsert = [];
-
-                while (current < end) {
-                    const slotTime = formatTime24(current);
-                    blocksToInsert.push({
-                        student_name: isOutOfOffice ? 'Out of Office' : 'ADMIN BLOCK',
-                        email: 'N/A',
-                        class_time: 'N/A',
-                        phone_number: 'N/A',
-                        booking_date: date,
-                        booking_time: slotTime,
-                        is_admin_block: true
-                    });
-                    current = addMinutes(current, 30);
-                }
-
-                const { error } = await supabase
-                    .from('bookings')
-                    .insert(blocksToInsert);
-
-                if (error) throw error;
-
-                showMessage(`✅ ${blocksToInsert.length} slot(s) blocked successfully`, 'success');
-                document.getElementById('blockDate').value = '';
-                document.getElementById('blockStartTime').value = '';
-                document.getElementById('blockEndTime').value = '';
-                document.getElementById('outOfOffice').checked = false;
-                await loadBookings();
-            } catch (error) {
-                showMessage('Error blocking range: ' + error.message, 'error');
-            }
-        }
-
-        async function loadAvailableSlots() {
-            try {
-                const { data, error } = await supabase
-                    .from('available_slots')
-                    .select('*')
-                    .gte('slot_date', new Date().toISOString().split('T')[0])
-                    .order('slot_date')
-                    .order('start_time');
-
-                if (error) throw error;
-
-                const list = document.getElementById('slotsList');
-                
-                if (!data || data.length === 0) {
-                    list.innerHTML = '<p style="color: #718096; padding: 10px; text-align: center;">No time blocks scheduled</p>';
-                    return;
-                }
-
-                list.innerHTML = data.map(slot => `
-                    <div class="slot-card">
-                        <div>
-                            <strong>${new Date(slot.slot_date + 'T00:00:00').toLocaleDateString()}</strong><br>
-                            <small>${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}</small>
-                        </div>
-                        <button class="delete-slot-btn" onclick="deleteSlot('${slot.id}')">Delete</button>
+                        <small>${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}</small>
                     </div>
-                `).join('');
-            } catch (error) {
-                showMessage('Error loading slots: ' + error.message, 'error');
-            }
+                    <button class="delete-slot-btn" onclick="deleteSlot('${slot.id}')">Delete</button>
+                </div>
+            `).join('');
+        } catch (error) {
+            showMessage('Error loading slots: ' + error.message, 'error');
         }
+    }
 
-        async function deleteSlot(id) {
-            if (!confirm('Delete this time block? This will also cancel any bookings in this time.')) return;
+    async function deleteSlot(id) {
+        if (!confirm('Delete this time block? This will also cancel any bookings in this time.')) return;
 
-            try {
-                const { error } = await supabase
-                    .from('available_slots')
-                    .delete()
-                    .eq('id', id);
+        try {
+            const { error } = await supabase
+                .from('available_slots')
+                .delete()
+                .eq('id', id);
 
-                if (error) throw error;
+            if (error) throw error;
 
-                showMessage('Time block deleted', 'success');
-                await loadAvailableSlots();
-            } catch (error) {
-                showMessage('Error deleting slot: ' + error.message, 'error');
-            }
+            showMessage('Time block deleted', 'success');
+            await loadAvailableSlots();
+        } catch (error) {
+            showMessage('Error deleting slot: ' + error.message, 'error');
         }
+    }
 
-        async function unblockRange(idStr) {
-            if (!confirm('Are you sure you want to unblock this entire range?')) return;
-            const ids = idStr.split("','");
-            try {
-                const { error } = await supabase
-                    .from('bookings')
-                    .delete()
-                    .in('id', ids);
-                if (error) throw error;
-                showMessage('Range unblocked successfully', 'success');
-                await loadBookings();
-            } catch (error) {
-                showMessage('Error unblocking range: ' + error.message, 'error');
+    async function loadBookings() {
+        try {
+            const { data, error } = await supabase
+                .from('bookings')
+                .select('*')
+                .gte('booking_date', new Date().toISOString().split('T')[0])
+                .order('booking_date')
+                .order('booking_time');
+
+            if (error) throw error;
+
+            const list = document.getElementById('bookingsList');
+            
+            if (!data || data.length === 0) {
+                list.innerHTML = '<p style="color: #718096; padding: 20px; text-align: center;">No upcoming bookings</p>';
+                return;
             }
-        }
 
-        async function loadBookings() {
-            try {
-                const { data, error } = await supabase
-                    .from('bookings')
-                    .select('*')
-                    .gte('booking_date', new Date().toISOString().split('T')[0])
-                    .order('booking_date')
-                    .order('booking_time');
+            // Group bookings by date
+            const grouped = data.reduce((acc, booking) => {
+                const dateKey = booking.booking_date;
+                if (!acc[dateKey]) acc[dateKey] = [];
+                acc[dateKey].push(booking);
+                return acc;
+            }, {});
 
-                if (error) throw error;
+            // Render grouped by date
+            list.innerHTML = Object.keys(grouped).map(dateKey => {
+                const dateObj = new Date(dateKey + 'T00:00:00');
+                const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                    weekday: 'long', 
+                    year: 'numeric', 
+                    month: 'long', 
+                    day: 'numeric' 
+                });
+                const bookingsForDate = grouped[dateKey];
 
-                const list = document.getElementById('bookingsList');
-                
-                if (!data || data.length === 0) {
-                    list.innerHTML = '<p style="color: #718096; padding: 20px; text-align: center;">No upcoming bookings</p>';
-                    return;
-                }
-
-                // Group bookings by date
-                const grouped = data.reduce((acc, booking) => {
-                    const dateKey = booking.booking_date;
-                    if (!acc[dateKey]) acc[dateKey] = [];
-                    acc[dateKey].push(booking);
-                    return acc;
-                }, {});
-
-                // Render grouped by date
-                list.innerHTML = Object.keys(grouped).map(dateKey => {
-                    const dateObj = new Date(dateKey + 'T00:00:00');
-                    const formattedDate = dateObj.toLocaleDateString('en-US', { 
-                        weekday: 'long', 
-                        year: 'numeric', 
-                        month: 'long', 
-                        day: 'numeric' 
-                    });
-                    const bookingsForDate = grouped[dateKey];
-
-                    let dateHtml = `<div class="date-header">${formattedDate}</div>`;
-                    let bookingsHtml = '';
-                    let i = 0;
-                    while (i < bookingsForDate.length) {
-                        const current = bookingsForDate[i];
-                        if (!current.is_admin_block) {
-                            const emailLink = current.email ? `<small><a href="mailto:${current.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${current.email}</a></small>` : '<small>Email: N/A</small>';
-                            bookingsHtml += `
-                                <div class="booking-card">
-                                    <div class="booking-info">
-                                        <strong>${current.student_name}</strong>
-                                        <strong>${new Date(current.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(current.booking_time)}</strong>
-                                        ${emailLink}
-                                        <small>Class Time: ${current.class_time}</small>
-                                        <small>Phone: ${current.phone_number}</small>
-                                    </div>
-                                    <button class="btn-danger" onclick="cancelBooking('${current.id}')">Cancel</button>
-                                </div>
-                            `;
-                            i++;
-                            continue;
-                        }
-                        // admin block
-                        let blockStart = current.booking_time;
-                        let blockEnd = current.booking_time;
-                        let blockIds = [current.id];
-                        let isOutOfOffice = current.student_name === 'Out of Office';
-                        i++;
-                        while (i < bookingsForDate.length) {
-                            const next = bookingsForDate[i];
-                            if (!next.is_admin_block) break;
-                            const prevTime = parseTime(blockEnd);
-                            const nextTime = parseTime(next.booking_time);
-                            if (Math.abs(nextTime.getTime() - (prevTime.getTime() + 30 * 60000)) > 1000) break; // Increased tolerance slightly
-                            blockEnd = next.booking_time;
-                            blockIds.push(next.id);
-                            i++;
-                        }
-                        const blockText = isOutOfOffice ? 'Out of Office' : 'ADMIN BLOCK';
-                        const rangeText = `${formatTime(blockStart)} - ${formatTime(blockEnd)}`;
-                        const dateStr = new Date(current.booking_date + 'T00:00:00').toLocaleDateString();
-                        bookingsHtml += `
+                return `
+                    <div class="date-header">${formattedDate}</div>
+                    ${bookingsForDate.map(booking => {
+                        const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
+                        return `
                             <div class="booking-card">
                                 <div class="booking-info">
-                                    <strong>${dateStr} 🚫 BLOCKED - ${blockText} (${rangeText})</strong>
+                                    <strong>${booking.is_admin_block ? ' BLOCKED - ' : ''}${booking.student_name}</strong>
+                                    <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(booking.booking_time)}</strong>
+                                    ${!booking.is_admin_block ? `
+                                        ${emailLink}
+                                        <small>Class Time: ${booking.class_time}</small>
+                                        <small>Phone: ${booking.phone_number}</small>
+                                    ` : ''}
                                 </div>
-                                <button class="btn-danger" onclick="unblockRange('${blockIds.join("','")}')">Unblock</button>
+                                <button class="btn-danger" onclick="cancelBooking('${booking.id}')">
+                                    ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
+                                </button>
                             </div>
                         `;
-                    }
-                    return dateHtml + bookingsHtml;
-                }).join('');
-            } catch (error) {
-                showMessage('Error loading bookings: ' + error.message, 'error');
-            }
+                    }).join('')}
+                `;
+            }).join('');
+        } catch (error) {
+            showMessage('Error loading bookings: ' + error.message, 'error');
         }
+    }
 
-        async function cancelBooking(id) {
-            if (!confirm('Are you sure?')) return;
+    async function cancelBooking(id) {
+        if (!confirm('Are you sure?')) return;
 
-            try {
-                const { error } = await supabase
-                    .from('bookings')
-                    .delete()
-                    .eq('id', id);
+        try {
+            const { error } = await supabase
+                .from('bookings')
+                .delete()
+                .eq('id', id);
 
-                if (error) throw error;
+            if (error) throw error;
 
-                showMessage('Booking cancelled', 'success');
-                await loadBookings();
-            } catch (error) {
-                showMessage('Error cancelling booking: ' + error.message, 'error');
-            }
-        }
-
-        async function loadAllData() {
-            await loadAvailableSlots();
+            showMessage('Booking cancelled', 'success');
             await loadBookings();
+        } catch (error) {
+            showMessage('Error cancelling booking: ' + error.message, 'error');
         }
+    }
 
-        function formatTime(timeStr) {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            const displayHours = hours % 12 || 12;
-            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-        }
+    async function loadAllData() {
+        await loadAvailableSlots();
+        await loadBookings();
+    }
 
-        function parseTime(timeStr) {
-            const [hours, minutes] = timeStr.split(':').map(Number);
-            const date = new Date();
-            date.setHours(hours, minutes, 0, 0);
-            return date;
-        }
+    function formatTime(timeStr) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const displayHours = hours % 12 || 12;
+        return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+    }
 
-        function addMinutes(date, minutes) {
-            return new Date(date.getTime() + minutes * 60000);
-        }
+    function parseTime(timeStr) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        const date = new Date();
+        date.setHours(hours, minutes, 0, 0);
+        return date;
+    }
 
-        function formatTime24(date) {
-            return date.toTimeString().slice(0, 5);
-        }
+    function addMinutes(date, minutes) {
+        return new Date(date.getTime() + minutes * 60000);
+    }
 
-        function showMessage(text, type) {
-            const msg = document.getElementById('message');
-            msg.className = type === 'error' ? 'error-msg' : 'success-msg';
-            msg.textContent = text;
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 5000);
-        }
+    function formatTime24(date) {
+        return date.toTimeString().slice(0, 5);
+    }
 
-        const today = new Date().toISOString().split('T')[0];
-        document.getElementById('slotDate').min = today;
-        document.getElementById('blockDate').min = today;
-    </script>
-</body>
+    function showMessage(text, type) {
+        const msg = document.getElementById('message');
+        msg.className = type === 'error' ? 'error-msg' : 'success-msg';
+        msg.textContent = text;
+        msg.style.display = 'block';
+        setTimeout(() => msg.style.display = 'none', 5000);
+    }
+
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('slotDate').min = today;
+    document.getElementById('blockDate').min = today;
+</script></body>
 </html>
+
