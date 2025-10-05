@@ -551,7 +551,7 @@
                 // Group by entity
                 const entityGroups = {};
                 for (let booking of bookingsForDate) {
-                    const key = `${booking.student_name}|${booking.is_admin_block}`;
+                    const key = booking.student_name.trim() + '|' + booking.is_admin_block;
                     if (!entityGroups[key]) entityGroups[key] = [];
                     entityGroups[key].push(booking);
                 }
