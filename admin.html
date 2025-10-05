@@ -540,7 +540,7 @@
                     month: 'long', 
                     day: 'numeric' 
                 });
-                const shortDate = new Date(booking.booking_date + 'T00:00:00').toLocaleDateString();
+                const shortDate = new Date(dateKey + 'T00:00:00').toLocaleDateString();
                 const bookingsForDate = grouped[dateKey];
 
                 return `
