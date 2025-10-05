@@ -211,6 +211,39 @@
             padding: 20px;
             color: #718096;
         }
+        #myBookingsSection {
+            margin-top: 40px;
+        }
+        #myBookingsSection h3 {
+            margin-bottom: 15px;
+            color: #2d3748;
+        }
+        .booking-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            margin-bottom: 10px;
+            background: #f7fafc;
+        }
+        .cancel-btn {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .cancel-btn:hover {
+            background: #dc2626;
+        }
+        .cancel-btn:disabled {
+            background: #cbd5e0;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -241,6 +274,11 @@
             <h3 style="margin-bottom: 15px; color: #2d3748;">Available Time Slots</h3>
             <div id="slotsContainer" class="slots-container"></div>
             <button class="btn" id="bookBtn" style="margin-top: 20px;" disabled>Book Selected Slot(s)</button>
+        </div>
+
+        <div id="myBookingsSection" style="display: none;">
+            <h3 style="margin-bottom: 15px; color: #2d3748;">My Bookings</h3>
+            <div id="myBookingsList"></div>
         </div>
     </div>
 
@@ -296,6 +334,7 @@
         let selectedSlots = [];
         let selectedDate = '';
         let availableDates = [];
+        let myBookings = [];
 
         async function loadAvailableDates() {
             try {
@@ -429,7 +468,7 @@
                      data-time="${slot.time}"
                      onclick="${slot.available ? 'toggleSlot(this)' : ''}">
                     <div class="slot-time">${slot.display}</div>
-                    <div class="slot-status">${slot.available ? 'Available' : 'Booked'}</div>
+                    <div class="slot-status">${slot.available ? 'Available' : 'Not Available'}</div>
                 </div>
             `).join('');
         }
@@ -470,7 +509,7 @@
 
         async function createBooking() {
             const name = document.getElementById('studentName').value;
-           const hour = document.getElementById('classHour').value;
+            const hour = document.getElementById('classHour').value;
             const period = document.getElementById('classPeriod').value;
             const phone = document.getElementById('phoneNumber').value;
             const classTime = `${hour} ${period}`;
@@ -613,4 +652,3 @@
     </script>
 </body>
 </html>
-
