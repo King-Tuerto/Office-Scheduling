@@ -283,7 +283,7 @@
                     <label>Phone Number *</label>
                     <input type="tel" id="phoneNumber" required placeholder="(555) 123-4567">
                 </div>
-                <button type="submit" class="btn">Confirm Booking</button>
+                <button type="submit" class="btn" id="confirmBtn">Confirm Booking</button>
             </form>
         </div>
     </div>
@@ -348,14 +348,12 @@
             selectedSlots = [];
             renderAvailableDates();
             
-            // Unsubscribe from previous subscription
             if (subscription) {
                 supabase.removeChannel(subscription);
             }
             
             await loadSlots();
             
-            // Subscribe to real-time changes for this date
             subscription = supabase
                 .channel(`bookings:${date}`)
                 .on(
@@ -366,9 +364,7 @@
                         table: 'bookings',
                         filter: `booking_date=eq.${date}`
                     },
-                    () => {
-                        loadSlots();
-                    }
+                    () => loadSlots()
                 )
                 .subscribe();
         }
@@ -448,9 +444,10 @@
                 return;
             }
 
-            // Clear any lingering selected classes
+            // Clear selections on refresh
             document.querySelectorAll('.slot.selected').forEach(slot => slot.classList.remove('selected'));
             selectedSlots = [];
+            document.getElementById('bookBtn').disabled = true;
 
             container.innerHTML = slots.map(slot => `
                 <div class="slot ${slot.available ? 'available' : 'booked'}" 
@@ -460,8 +457,6 @@
                     <div class="slot-status">${slot.available ? 'Available' : 'Not Available'}</div>
                 </div>
             `).join('');
-
-            document.getElementById('bookBtn').disabled = true;
         }
 
         function toggleSlot(element) {
@@ -510,24 +505,11 @@
                 return;
             }
 
+            const submitBtn = document.getElementById('confirmBtn');
+            submitBtn.disabled = true;
+            submitBtn.textContent = 'Booking...';
+
             try {
-                // Double-check availability right before booking (prevents race conditions)
-                const { data: currentBookings, error: checkError } = await supabase
-                    .from('bookings')
-                    .select('booking_time')
-                    .eq('booking_date', selectedDate);
-
-                if (checkError) throw checkError;
-
-                const bookedTimes = currentBookings.map(b => b.booking_time);
-                const conflictingSlots = selectedSlots.filter(slot => bookedTimes.includes(slot));
-
-                if (conflictingSlots.length > 0) {
-                    showMessage(`Sorry, the ${conflictingSlots.map(formatTimeForDisplay(parseTime)).join(' and ')} slot(s) are no longer available. Please select again.`, 'error');
-                    await loadSlots(); // Refresh slots to show updated availability
-                    return;
-                }
-
                 const bookingsToCreate = selectedSlots.map(time => ({
                     student_name: name,
                     class_time: classTime,
@@ -541,18 +523,28 @@
                     .from('bookings')
                     .insert(bookingsToCreate);
 
-                if (error) throw error;
+                if (error) {
+                    if (error.code === '23505') {  // Unique violation
+                        showMessage('Sorry, one or more selected slots were just taken by another student. Please select again.', 'error');
+                        await loadSlots();
+                    } else {
+                        throw error;
+                    }
+                    return;
+                }
 
                 showMessage(`✅ Booking confirmed for ${name}! See you then.`, 'success');
                 closeModal();
                 document.getElementById('bookingForm').reset();
                 selectedSlots = [];
-                // Force a fresh load after a brief delay to ensure DB propagation
                 setTimeout(async () => {
                     await loadSlots();
                 }, 300);
             } catch (error) {
                 showMessage('Error creating booking: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.textContent = 'Confirm Booking';
             }
         }
 
@@ -587,7 +579,6 @@
             return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
         }
 
-        // Cleanup subscription on page unload
         window.addEventListener('beforeunload', () => {
             if (subscription) {
                 supabase.removeChannel(subscription);
