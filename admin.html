@@ -282,45 +282,6 @@
     let currentConfirmAction = null;
     let currentConfirmButton = null;
 
-    function add30min(timeStr) {
-        const [hours, minutes] = timeStr.split(':').map(Number);
-        let newMinutes = minutes + 30;
-        let newHours = hours;
-        if (newMinutes >= 60) {
-            newMinutes -= 60;
-            newHours = (hours + 1) % 24;
-        }
-        return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
-    }
-
-    function mergeAdminBlocks(adminBookings) {
-        if (adminBookings.length === 0) return [];
-        adminBookings.sort((a, b) => a.booking_time.localeCompare(b.booking_time));
-        let merged = [{
-            start: adminBookings[0].booking_time,
-            end: add30min(adminBookings[0].booking_time),
-            name: adminBookings[0].student_name,
-            ids: [adminBookings[0].id]
-        }];
-        for (let i = 1; i < adminBookings.length; i++) {
-            const curr = adminBookings[i];
-            const last = merged[merged.length - 1];
-            const expectedStart = last.end;
-            if (curr.booking_time === expectedStart) {
-                last.end = add30min(curr.booking_time);
-                last.ids.push(curr.id);
-            } else {
-                merged.push({
-                    start: curr.booking_time,
-                    end: add30min(curr.booking_time),
-                    name: curr.student_name,
-                    ids: [curr.id]
-                });
-            }
-        }
-        return merged;
-    }
-
     function showConfirm(message, action, button = null) {
         document.getElementById('confirmText').textContent = message;
         currentConfirmAction = action;
@@ -568,52 +529,28 @@
                     month: 'long', 
                     day: 'numeric' 
                 });
-                const shortDate = dateObj.toLocaleDateString();
                 const bookingsForDate = grouped[dateKey];
-
-                const nonAdmin = bookingsForDate.filter(b => !b.is_admin_block);
-                const adminBookings = bookingsForDate.filter(b => b.is_admin_block);
-                const merged = mergeAdminBlocks(adminBookings);
-
-                const displayItems = [
-                    ...nonAdmin.map(b => ({type: 'booking', data: b})),
-                    ...merged.map(m => ({type: 'block', data: m}))
-                ].sort((a, b) => {
-                    const aTime = a.type === 'booking' ? a.data.booking_time : a.data.start;
-                    const bTime = b.type === 'booking' ? b.data.booking_time : b.data.start;
-                    return aTime.localeCompare(bTime);
-                });
 
                 return `
                     <div class="date-header">${formattedDate}</div>
-                    ${displayItems.map(item => {
-                        if (item.type === 'booking') {
-                            const booking = item.data;
-                            const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
-                            return `
-                                <div class="booking-card">
-                                    <div class="booking-info">
-                                        <strong>${booking.student_name}</strong>
-                                        <strong>${shortDate} at ${formatTime(booking.booking_time)}</strong>
+                    ${bookingsForDate.map(booking => {
+                        const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
+                        return `
+                            <div class="booking-card">
+                                <div class="booking-info">
+                                    <strong>${booking.is_admin_block ? ' BLOCKED - ' : ''}${booking.student_name}</strong>
+                                    <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(booking.booking_time)}</strong>
+                                    ${!booking.is_admin_block ? `
                                         ${emailLink}
                                         <small>Class Time: ${booking.class_time}</small>
                                         <small>Phone: ${booking.phone_number}</small>
-                                    </div>
-                                    <button class="btn-danger" onclick="cancelBooking('${booking.id}', this)">Cancel</button>
+                                    ` : ''}
                                 </div>
-                            `;
-                        } else {
-                            const block = item.data;
-                            return `
-                                <div class="booking-card">
-                                    <div class="booking-info">
-                                        <strong>BLOCKED - ${block.name}</strong>
-                                        <strong>${shortDate} from ${formatTime(block.start)} to ${formatTime(block.end)}</strong>
-                                    </div>
-                                    <button class="btn-danger" onclick="cancelBooking(${JSON.stringify(block.ids)}, this)">Unblock</button>
-                                </div>
-                            `;
-                        }
+                                <button class="btn-danger" onclick="cancelBooking('${booking.id}', this)">
+                                    ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
+                                </button>
+                            </div>
+                        `;
                     }).join('')}
                 `;
             }).join('');
@@ -622,33 +559,20 @@
         }
     }
 
-    async function cancelBooking(idOrIds, button) {
-        let message = 'Are you sure?';
-        if (Array.isArray(idOrIds)) {
-            message = `Unblock this block (${idOrIds.length} slots)?`;
-        }
-        showConfirm(message, async () => {
+    async function cancelBooking(id, button) {
+        showConfirm('Are you sure?', async () => {
             try {
-                if (Array.isArray(idOrIds)) {
-                    for (let id of idOrIds) {
-                        const { error } = await supabase
-                            .from('bookings')
-                            .delete()
-                            .eq('id', id);
-                        if (error) throw error;
-                    }
-                    showMessage('Block unblocked', 'success');
-                } else {
-                    const { error } = await supabase
-                        .from('bookings')
-                        .delete()
-                        .eq('id', idOrIds);
-                    if (error) throw error;
-                    showMessage('Booking cancelled', 'success');
-                }
+                const { error } = await supabase
+                    .from('bookings')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                showMessage('Booking cancelled', 'success');
                 await loadBookings();
             } catch (error) {
-                showMessage('Error: ' + error.message, 'error');
+                showMessage('Error cancelling booking: ' + error.message, 'error');
             }
         }, button);
     }
