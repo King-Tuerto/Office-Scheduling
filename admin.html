@@ -184,7 +184,7 @@
     <div id="adminPanel" style="display: none;">
         <div class="container">
             <button class="logout-btn" onclick="logout()">Logout</button>
-            <h1>🔧 Waterman Admin</h1>
+            <h1>🔧 Admin Panel</h1>
             <p class="subtitle">Manage your office hours and bookings</p>
 
             <div id="message"></div>
@@ -212,16 +212,22 @@
                 </div>
 
                 <div class="card">
-                    <h3>🚫 Block Time for Myself</h3>
+                    <h3>🚫 Block Time Range for Myself</h3>
                     <div class="form-group">
                         <label>Date</label>
                         <input type="date" id="blockDate">
                     </div>
-                    <div class="form-group">
-                        <label>Time Slot</label>
-                        <input type="time" id="blockTime" step="1800">
+                    <div class="time-row">
+                        <div class="form-group">
+                            <label>Start Time</label>
+                            <input type="time" id="blockStartTime">
+                        </div>
+                        <div class="form-group">
+                            <label>End Time</label>
+                            <input type="time" id="blockEndTime">
+                        </div>
                     </div>
-                    <button onclick="blockTimeSlot()" class="btn btn-warning">Block This Slot</button>
+                    <button onclick="blockTimeRange()" class="btn btn-warning">Block This Range</button>
                 </div>
             </div>
 
@@ -303,36 +309,55 @@
             }
         }
 
-        async function blockTimeSlot() {
+        async function blockTimeRange() {
             const date = document.getElementById('blockDate').value;
-            const time = document.getElementById('blockTime').value;
+            const startTime = document.getElementById('blockStartTime').value;
+            const endTime = document.getElementById('blockEndTime').value;
 
-            if (!date || !time) {
+            if (!date || !startTime || !endTime) {
                 showMessage('Please fill in all fields', 'error');
                 return;
             }
 
+            if (startTime >= endTime) {
+                showMessage('End time must be after start time', 'error');
+                return;
+            }
+
             try {
-                const { error } = await supabase
-                    .from('bookings')
-                    .insert({
+                // Generate 30-min slots between start and end
+                const start = parseTime(startTime);
+                const end = parseTime(endTime);
+                let current = start;
+                const blocksToInsert = [];
+
+                while (current < end) {
+                    const slotTime = formatTime24(current);
+                    blocksToInsert.push({
                         student_name: 'ADMIN BLOCK',
                         email: 'N/A',
                         class_time: 'N/A',
                         phone_number: 'N/A',
                         booking_date: date,
-                        booking_time: time,
+                        booking_time: slotTime,
                         is_admin_block: true
                     });
+                    current = addMinutes(current, 30);
+                }
+
+                const { error } = await supabase
+                    .from('bookings')
+                    .insert(blocksToInsert);
 
                 if (error) throw error;
 
-                showMessage('✅ Time slot blocked successfully', 'success');
+                showMessage(`✅ ${blocksToInsert.length} slot(s) blocked successfully`, 'success');
                 document.getElementById('blockDate').value = '';
-                document.getElementById('blockTime').value = '';
+                document.getElementById('blockStartTime').value = '';
+                document.getElementById('blockEndTime').value = '';
                 await loadBookings();
             } catch (error) {
-                showMessage('Error blocking slot: ' + error.message, 'error');
+                showMessage('Error blocking range: ' + error.message, 'error');
             }
         }
 
@@ -479,6 +504,21 @@
             const ampm = hours >= 12 ? 'PM' : 'AM';
             const displayHours = hours % 12 || 12;
             return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+        }
+
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const date = new Date();
+            date.setHours(hours, minutes, 0, 0);
+            return date;
+        }
+
+        function addMinutes(date, minutes) {
+            return new Date(date.getTime() + minutes * 60000);
+        }
+
+        function formatTime24(date) {
+            return date.toTimeString().slice(0, 5);
         }
 
         function showMessage(text, type) {
