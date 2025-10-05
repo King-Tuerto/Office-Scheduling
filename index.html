@@ -438,7 +438,7 @@
                     const slotFullDate = new Date(selectedDate + 'T' + slotTime + ':00');
                     const isTooSoon = slotFullDate < nowPlus24h;
                     const available = !isBooked && !isTooSoon;
-                    const status = available ? 'Available' : (isBooked ? 'Booked' : 'Too Soon (24h in advance)');
+                    const status = available ? 'Available' : (isBooked ? 'Booked' : '24h rule restricted - stop by office if urgent');
                     
                     slots.push({
                         time: slotTime,
