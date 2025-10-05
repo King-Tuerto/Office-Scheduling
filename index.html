@@ -421,10 +421,11 @@
 
                 while (current < end) {
                     const timeStr = formatTimeForDisplay(current);
-                    const isBooked = bookings.some(b => b.booking_time === formatTime24(current));
+                    const slotTime = formatTime24(current);
+                    const isBooked = bookings.some(b => b.booking_time.slice(0, 5) === slotTime);
                     
                     slots.push({
-                        time: formatTime24(current),
+                        time: slotTime,
                         display: timeStr,
                         available: !isBooked
                     });
@@ -557,9 +558,9 @@
         }
 
         function parseTime(timeStr) {
-            const [hours, minutes] = timeStr.split(':').map(Number);
+            const parts = timeStr.split(':').map(Number);
             const date = new Date();
-            date.setHours(hours, minutes, 0, 0);
+            date.setHours(parts[0] || 0, parts[1] || 0, parts[2] || 0, 0);
             return date;
         }
 
