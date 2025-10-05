@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -455,27 +456,51 @@
                 });
                 const bookingsForDate = grouped[dateKey];
 
+                const regularBookings = bookingsForDate.filter(b => !b.is_admin_block).sort((a, b) => a.booking_time.localeCompare(b.booking_time));
+                const adminBlocks = bookingsForDate.filter(b => b.is_admin_block).sort((a, b) => a.booking_time.localeCompare(b.booking_time));
+                const mergedAdmin = mergeContiguous(adminBlocks);
+
+                let displayItems = [];
+
+                // Regular bookings
+                regularBookings.forEach(booking => {
+                    const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
+                    const html = `
+                        <div class="booking-card">
+                            <div class="booking-info">
+                                <strong>${booking.student_name}</strong>
+                                <strong>${formattedDate} at ${formatTime(booking.booking_time)}</strong>
+                                ${emailLink}
+                                <small>Class Time: ${booking.class_time}</small>
+                                <small>Phone: ${booking.phone_number}</small>
+                            </div>
+                            <button class="btn-danger" onclick="cancelBookings('${booking.id}')">Cancel</button>
+                        </div>
+                    `;
+                    displayItems.push({ sortKey: booking.booking_time, html });
+                });
+
+                // Merged admin blocks
+                mergedAdmin.forEach(current => {
+                    const timeDisplay = current.ids.length === 1 ? formatTime(current.startTime) : `${formatTime(current.startTime)} - ${formatTime(current.endTime)}`;
+                    const html = `
+                        <div class="booking-card">
+                            <div class="booking-info">
+                                <strong>BLOCKED - ${current.studentName}</strong>
+                                <strong>${formattedDate} at ${timeDisplay}</strong>
+                            </div>
+                            <button class="btn-danger" onclick="cancelBookings(${JSON.stringify(current.ids)})">Unblock</button>
+                        </div>
+                    `;
+                    displayItems.push({ sortKey: current.startTime, html });
+                });
+
+                // Sort display items by time
+                displayItems.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+
                 return `
                     <div class="date-header">${formattedDate}</div>
-                    ${bookingsForDate.map(booking => {
-                        const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
-                        return `
-                            <div class="booking-card">
-                                <div class="booking-info">
-                                    <strong>${booking.is_admin_block ? ' BLOCKED - ' : ''}${booking.student_name}</strong>
-                                    <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(booking.booking_time)}</strong>
-                                    ${!booking.is_admin_block ? `
-                                        ${emailLink}
-                                        <small>Class Time: ${booking.class_time}</small>
-                                        <small>Phone: ${booking.phone_number}</small>
-                                    ` : ''}
-                                </div>
-                                <button class="btn-danger" onclick="cancelBooking('${booking.id}')">
-                                    ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
-                                </button>
-                            </div>
-                        `;
-                    }).join('')}
+                    ${displayItems.map(item => item.html).join('')}
                 `;
             }).join('');
         } catch (error) {
@@ -483,22 +508,69 @@
         }
     }
 
-    async function cancelBooking(id) {
-        if (!confirm('Are you sure?')) return;
+    async function cancelBookings(idOrIds) {
+        let ids;
+        if (Array.isArray(idOrIds)) {
+            ids = idOrIds;
+        } else {
+            ids = [idOrIds];
+        }
+        const num = ids.length;
+        const isAdminBlock = Array.isArray(idOrIds);
+        const isRange = num > 1;
+        const confirmMsg = isRange ? 'Are you sure you want to unblock this range?' : (isAdminBlock ? 'Are you sure you want to unblock this slot?' : 'Are you sure you want to cancel this booking?');
+        if (!confirm(confirmMsg)) return;
 
         try {
-            const { error } = await supabase
-                .from('bookings')
-                .delete()
-                .eq('id', id);
+            for (let id of ids) {
+                const { error } = await supabase
+                    .from('bookings')
+                    .delete()
+                    .eq('id', id);
 
-            if (error) throw error;
-
-            showMessage('Booking cancelled', 'success');
+                if (error) throw error;
+            }
+            const msg = isRange ? `Range unblocked (${num} slots)` : (isAdminBlock ? 'Slot unblocked' : 'Booking cancelled');
+            showMessage(msg, 'success');
             await loadBookings();
         } catch (error) {
-            showMessage('Error cancelling booking: ' + error.message, 'error');
+            showMessage('Error: ' + error.message, 'error');
         }
+    }
+
+    function mergeContiguous(blocks) {
+        if (blocks.length === 0) return [];
+        const merged = [];
+        let current = {
+            startTime: blocks[0].booking_time,
+            endTime: add30Min(blocks[0].booking_time),
+            studentName: blocks[0].student_name,
+            ids: [blocks[0].id]
+        };
+        for (let i = 1; i < blocks.length; i++) {
+            const nextStart = blocks[i].booking_time;
+            const expectedNext = current.endTime;
+            if (nextStart === expectedNext && blocks[i].student_name === current.studentName) {
+                current.endTime = add30Min(nextStart);
+                current.ids.push(blocks[i].id);
+            } else {
+                merged.push(current);
+                current = {
+                    startTime: nextStart,
+                    endTime: add30Min(nextStart),
+                    studentName: blocks[i].student_name,
+                    ids: [blocks[i].id]
+                };
+            }
+        }
+        merged.push(current);
+        return merged;
+    }
+
+    function add30Min(timeStr) {
+        const date = parseTime(timeStr);
+        const newDate = addMinutes(date, 30);
+        return formatTime24(newDate);
     }
 
     async function loadAllData() {
