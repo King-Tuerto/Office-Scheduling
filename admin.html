@@ -282,6 +282,17 @@
     let currentConfirmAction = null;
     let currentConfirmButton = null;
 
+    function add30min(timeStr) {
+        const [hours, minutes] = timeStr.split(':').map(Number);
+        let newMinutes = minutes + 30;
+        let newHours = hours;
+        if (newMinutes >= 60) {
+            newMinutes -= 60;
+            newHours = (hours + 1) % 24;
+        }
+        return `${newHours.toString().padStart(2, '0')}:${newMinutes.toString().padStart(2, '0')}`;
+    }
+
     function showConfirm(message, action, button = null) {
         document.getElementById('confirmText').textContent = message;
         currentConfirmAction = action;
@@ -529,17 +540,19 @@
                     month: 'long', 
                     day: 'numeric' 
                 });
+                const shortDate = new Date(booking.booking_date + 'T00:00:00').toLocaleDateString();
                 const bookingsForDate = grouped[dateKey];
 
                 return `
                     <div class="date-header">${formattedDate}</div>
                     ${bookingsForDate.map(booking => {
+                        const endTime = add30min(booking.booking_time);
                         const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
                         return `
                             <div class="booking-card">
                                 <div class="booking-info">
                                     <strong>${booking.is_admin_block ? ' BLOCKED - ' : ''}${booking.student_name}</strong>
-                                    <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(booking.booking_time)}</strong>
+                                    <strong>${shortDate} from ${formatTime(booking.booking_time)} to ${formatTime(endTime)}</strong>
                                     ${!booking.is_admin_block ? `
                                         ${emailLink}
                                         <small>Class Time: ${booking.class_time}</small>
