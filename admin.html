@@ -546,63 +546,26 @@
                     day: 'numeric' 
                 });
                 const shortDate = dateObj.toLocaleDateString();
-                let bookingsForDate = grouped[dateKey];
-
-                // Group by entity
-                const entityGroups = {};
-                for (let booking of bookingsForDate) {
-                    const key = booking.student_name.trim() + '|' + booking.is_admin_block;
-                    if (!entityGroups[key]) entityGroups[key] = [];
-                    entityGroups[key].push(booking);
-                }
-
-                let allMerged = [];
-                for (let key in entityGroups) {
-                    let group = entityGroups[key];
-                    group.sort((a, b) => a.booking_time.localeCompare(b.booking_time));
-                    let groupMerged = [];
-                    if (group.length > 0) {
-                        let current = { ...group[0], ids: [group[0].id], start: group[0].booking_time, end: add30min(group[0].booking_time) };
-                        for (let i = 1; i < group.length; i++) {
-                            let b = group[i];
-                            let expectedNext = current.end;
-                            if (b.booking_time === expectedNext) {
-                                current.end = add30min(b.booking_time);
-                                current.ids.push(b.id);
-                            } else {
-                                groupMerged.push(current);
-                                current = { ...b, ids: [b.id], start: b.booking_time, end: add30min(b.booking_time) };
-                            }
-                        }
-                        groupMerged.push(current);
-                    }
-                    allMerged = allMerged.concat(groupMerged);
-                }
-
-                // Sort all merged by start time
-                allMerged.sort((a, b) => a.start.localeCompare(b.start));
+                const bookingsForDate = grouped[dateKey];
 
                 return `
                     <div class="date-header">${formattedDate}</div>
-                    ${allMerged.map(m => {
-                        const isAdmin = m.is_admin_block;
-                        const emailLink = m.email ? `<small><a href="mailto:${m.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${m.email}</a></small>` : '<small>Email: N/A</small>';
-                        const details = !isAdmin ? `
-                            ${emailLink}
-                            <small>Class Time: ${m.class_time}</small>
-                            <small>Phone: ${m.phone_number}</small>
-                        ` : '';
-                        const buttonText = isAdmin ? 'Unblock' : 'Cancel';
-                        const idsStr = JSON.stringify(m.ids);
+                    ${bookingsForDate.map(booking => {
+                        const endTime = add30min(booking.booking_time);
+                        const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
                         return `
                             <div class="booking-card">
                                 <div class="booking-info">
-                                    <strong>${isAdmin ? ' BLOCKED - ' : ''}${m.student_name}</strong>
-                                    <strong>${shortDate} from ${formatTime(m.start)} to ${formatTime(m.end)}</strong>
-                                    ${details}
+                                    <strong>${booking.is_admin_block ? ' BLOCKED - ' : ''}${booking.student_name}</strong>
+                                    <strong>${shortDate} from ${formatTime(booking.booking_time)} to ${formatTime(endTime)}</strong>
+                                    ${!booking.is_admin_block ? `
+                                        ${emailLink}
+                                        <small>Class Time: ${booking.class_time}</small>
+                                        <small>Phone: ${booking.phone_number}</small>
+                                    ` : ''}
                                 </div>
-                                <button class="btn-danger" onclick="cancelBooking(${idsStr}, this)">
-                                    ${buttonText}
+                                <button class="btn-danger" onclick="cancelBooking('${booking.id}', this)">
+                                    ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
                                 </button>
                             </div>
                         `;
@@ -614,33 +577,20 @@
         }
     }
 
-    async function cancelBooking(idOrIds, button) {
-        let confirmMsg = 'Are you sure?';
-        if (Array.isArray(idOrIds) && idOrIds.length > 1) {
-            confirmMsg = `Are you sure you want to cancel/unblock this block? (${idOrIds.length} slots)`;
-        }
-        showConfirm(confirmMsg, async () => {
+    async function cancelBooking(id, button) {
+        showConfirm('Are you sure?', async () => {
             try {
-                if (Array.isArray(idOrIds)) {
-                    for (let id of idOrIds) {
-                        const { error } = await supabase
-                            .from('bookings')
-                            .delete()
-                            .eq('id', id);
-                        if (error) throw error;
-                    }
-                    showMessage('Block cancelled/unblocked', 'success');
-                } else {
-                    const { error } = await supabase
-                        .from('bookings')
-                        .delete()
-                        .eq('id', idOrIds);
-                    if (error) throw error;
-                    showMessage('Booking cancelled', 'success');
-                }
+                const { error } = await supabase
+                    .from('bookings')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                showMessage('Booking cancelled', 'success');
                 await loadBookings();
             } catch (error) {
-                showMessage('Error: ' + error.message, 'error');
+                showMessage('Error cancelling booking: ' + error.message, 'error');
             }
         }, button);
     }
