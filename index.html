@@ -448,6 +448,10 @@
                 return;
             }
 
+            // Clear any lingering selected classes
+            document.querySelectorAll('.slot.selected').forEach(slot => slot.classList.remove('selected'));
+            selectedSlots = [];
+
             container.innerHTML = slots.map(slot => `
                 <div class="slot ${slot.available ? 'available' : 'booked'}" 
                      data-time="${slot.time}"
@@ -456,6 +460,8 @@
                     <div class="slot-status">${slot.available ? 'Available' : 'Not Available'}</div>
                 </div>
             `).join('');
+
+            document.getElementById('bookBtn').disabled = true;
         }
 
         function toggleSlot(element) {
@@ -493,10 +499,10 @@
         }
 
         async function createBooking() {
-            const name = document.getElementById('studentName').value;
+            const name = document.getElementById('studentName').value.trim();
             const hour = document.getElementById('classHour').value;
             const period = document.getElementById('classPeriod').value;
-            const phone = document.getElementById('phoneNumber').value;
+            const phone = document.getElementById('phoneNumber').value.trim();
             const classTime = `${hour} ${period}`;
 
             if (!name || !hour || !period || !phone) {
@@ -505,6 +511,23 @@
             }
 
             try {
+                // Double-check availability right before booking (prevents race conditions)
+                const { data: currentBookings, error: checkError } = await supabase
+                    .from('bookings')
+                    .select('booking_time')
+                    .eq('booking_date', selectedDate);
+
+                if (checkError) throw checkError;
+
+                const bookedTimes = currentBookings.map(b => b.booking_time);
+                const conflictingSlots = selectedSlots.filter(slot => bookedTimes.includes(slot));
+
+                if (conflictingSlots.length > 0) {
+                    showMessage(`Sorry, the ${conflictingSlots.map(formatTimeForDisplay(parseTime)).join(' and ')} slot(s) are no longer available. Please select again.`, 'error');
+                    await loadSlots(); // Refresh slots to show updated availability
+                    return;
+                }
+
                 const bookingsToCreate = selectedSlots.map(time => ({
                     student_name: name,
                     class_time: classTime,
@@ -524,7 +547,10 @@
                 closeModal();
                 document.getElementById('bookingForm').reset();
                 selectedSlots = [];
-                await loadSlots();
+                // Force a fresh load after a brief delay to ensure DB propagation
+                setTimeout(async () => {
+                    await loadSlots();
+                }, 300);
             } catch (error) {
                 showMessage('Error creating booking: ' + error.message, 'error');
             }
