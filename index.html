@@ -215,8 +215,8 @@
 </head>
 <body>
     <div class="container">
-        <h1>📅 Waterman Office Hours CCOB 42-125</h1>
-        <p class="subtitle">Select available time slot(s) to meet</p>
+        <h1>📅 Office Hours Booking</h1>
+        <p class="subtitle">Select available time slots to meet with your professor</p>
 
         <div class="info-box">
             <strong>📌 Important Notes:</strong>
@@ -224,7 +224,7 @@
                 <li>Bookings must be made at least 24 hours in advance</li>
                 <li>You may book up to 1 hour (two consecutive 30-min slots) per day</li>
                 <li>To cancel, you must do so at least 24 hours before your appointment</li>
-                <li>If you need to meet today, feel free to stop by during office hours - if I'm available and not with another student, I'm glad to meet!</li>
+                <li>Feel free to stop by during office hours - if I'm available and not with another student, I'm glad to meet!</li>
             </ul>
         </div>
 
@@ -254,6 +254,10 @@
                 <div class="form-group">
                     <label>Full Name *</label>
                     <input type="text" id="studentName" required>
+                </div>
+                <div class="form-group">
+                    <label>Email Address *</label>
+                    <input type="email" id="studentEmail" required placeholder="your.email@school.edu">
                 </div>
                 <div class="form-group">
                     <label>Class Time *</label>
@@ -300,14 +304,18 @@
 
         async function loadAvailableDates() {
             try {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const tomorrowStr = tomorrow.toISOString().split('T')[0];
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+
+                const twoWeeks = new Date();
+                twoWeeks.setDate(twoWeeks.getDate() + 14);
+                const twoWeeksStr = twoWeeks.toISOString().split('T')[0];
 
                 const { data, error } = await supabase
                     .from('available_slots')
                     .select('slot_date')
-                    .gte('slot_date', tomorrowStr)
+                    .gte('slot_date', todayStr)
+                    .lte('slot_date', twoWeeksStr)
                     .order('slot_date');
 
                 if (error) throw error;
@@ -438,155 +446,4 @@
         }
 
         function renderSlots(slots) {
-            const container = document.getElementById('slotsContainer');
-            
-            if (slots.length === 0) {
-                container.innerHTML = '<p style="text-align: center; color: #718096; padding: 20px;">No office hours available for this date.</p>';
-                return;
-            }
-
-            // Clear selections on refresh
-            document.querySelectorAll('.slot.selected').forEach(slot => slot.classList.remove('selected'));
-            selectedSlots = [];
-            document.getElementById('bookBtn').disabled = true;
-
-            container.innerHTML = slots.map(slot => `
-                <div class="slot ${slot.available ? 'available' : 'booked'}" 
-                     data-time="${slot.time}"
-                     onclick="${slot.available ? 'toggleSlot(this)' : ''}">
-                    <div class="slot-time">${slot.display}</div>
-                    <div class="slot-status">${slot.available ? 'Available' : 'Not Available'}</div>
-                </div>
-            `).join('');
-        }
-
-        function toggleSlot(element) {
-            const time = element.dataset.time;
-            
-            if (element.classList.contains('selected')) {
-                element.classList.remove('selected');
-                selectedSlots = selectedSlots.filter(t => t !== time);
-            } else {
-                if (selectedSlots.length >= 2) {
-                    showMessage('You can only book up to 1 hour (2 slots) per day', 'error');
-                    return;
-                }
-                
-                if (selectedSlots.length === 1) {
-                    if (!areConsecutive(selectedSlots[0], time)) {
-                        showMessage('Slots must be consecutive (e.g., 2:00 PM and 2:30 PM)', 'error');
-                        return;
-                    }
-                }
-                
-                element.classList.add('selected');
-                selectedSlots.push(time);
-                selectedSlots.sort();
-            }
-
-            document.getElementById('bookBtn').disabled = selectedSlots.length === 0;
-        }
-
-        function areConsecutive(time1, time2) {
-            const t1 = parseTime(time1);
-            const t2 = parseTime(time2);
-            const diff = Math.abs(t1 - t2);
-            return diff === 30 * 60 * 1000;
-        }
-
-        async function createBooking() {
-            const name = document.getElementById('studentName').value.trim();
-            const hour = document.getElementById('classHour').value;
-            const period = document.getElementById('classPeriod').value;
-            const phone = document.getElementById('phoneNumber').value.trim();
-            const classTime = `${hour} ${period}`;
-
-            if (!name || !hour || !period || !phone) {
-                showMessage('Please fill in all fields.', 'error');
-                return;
-            }
-
-            const submitBtn = document.getElementById('confirmBtn');
-            submitBtn.disabled = true;
-            submitBtn.textContent = 'Booking...';
-
-            try {
-                const bookingsToCreate = selectedSlots.map(time => ({
-                    student_name: name,
-                    class_time: classTime,
-                    phone_number: phone,
-                    booking_date: selectedDate,
-                    booking_time: time,
-                    is_admin_block: false
-                }));
-
-                const { error } = await supabase
-                    .from('bookings')
-                    .insert(bookingsToCreate);
-
-                if (error) {
-                    if (error.code === '23505') {  // Unique violation
-                        showMessage('Sorry, one or more selected slots were just taken by another student. Please select again.', 'error');
-                        await loadSlots();
-                    } else {
-                        throw error;
-                    }
-                    return;
-                }
-
-                showMessage(`✅ Booking confirmed for ${name}! See you then.`, 'success');
-                closeModal();
-                document.getElementById('bookingForm').reset();
-                selectedSlots = [];
-                setTimeout(async () => {
-                    await loadSlots();
-                }, 300);
-            } catch (error) {
-                showMessage('Error creating booking: ' + error.message, 'error');
-            } finally {
-                submitBtn.disabled = false;
-                submitBtn.textContent = 'Confirm Booking';
-            }
-        }
-
-        function showMessage(text, type) {
-            const msg = document.getElementById('message');
-            msg.className = type === 'error' ? 'error-msg' : 'success-msg';
-            msg.textContent = text;
-            msg.style.display = 'block';
-            setTimeout(() => msg.style.display = 'none', 5000);
-        }
-
-        function parseTime(timeStr) {
-            const parts = timeStr.split(':').map(Number);
-            const date = new Date();
-            date.setHours(parts[0] || 0, parts[1] || 0, parts[2] || 0, 0);
-            return date;
-        }
-
-        function addMinutes(date, minutes) {
-            return new Date(date.getTime() + minutes * 60000);
-        }
-
-        function formatTime24(date) {
-            return date.toTimeString().slice(0, 5);
-        }
-
-        function formatTimeForDisplay(date) {
-            let hours = date.getHours();
-            const minutes = date.getMinutes();
-            const ampm = hours >= 12 ? 'PM' : 'AM';
-            hours = hours % 12 || 12;
-            return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
-        }
-
-        window.addEventListener('beforeunload', () => {
-            if (subscription) {
-                supabase.removeChannel(subscription);
-            }
-        });
-
-        loadAvailableDates();
-    </script>
-</body>
-</html>           
+            const container =
