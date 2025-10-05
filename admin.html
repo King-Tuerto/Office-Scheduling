@@ -418,6 +418,22 @@
             }
         }
 
+        async function unblockRange(idStr) {
+            if (!confirm('Are you sure you want to unblock this entire range?')) return;
+            const ids = idStr.split("','");
+            try {
+                const { error } = await supabase
+                    .from('bookings')
+                    .delete()
+                    .in('id', ids);
+                if (error) throw error;
+                showMessage('Range unblocked successfully', 'success');
+                await loadBookings();
+            } catch (error) {
+                showMessage('Error unblocking range: ' + error.message, 'error');
+            }
+        }
+
         async function loadBookings() {
             try {
                 const { data, error } = await supabase
@@ -455,28 +471,57 @@
                     });
                     const bookingsForDate = grouped[dateKey];
 
-                    return `
-                        <div class="date-header">${formattedDate}</div>
-                        ${bookingsForDate.map(booking => {
-                            const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
-                            return `
+                    let dateHtml = `<div class="date-header">${formattedDate}</div>`;
+                    let bookingsHtml = '';
+                    let i = 0;
+                    while (i < bookingsForDate.length) {
+                        const current = bookingsForDate[i];
+                        if (!current.is_admin_block) {
+                            const emailLink = current.email ? `<small><a href="mailto:${current.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${current.email}</a></small>` : '<small>Email: N/A</small>';
+                            bookingsHtml += `
                                 <div class="booking-card">
                                     <div class="booking-info">
-                                        <strong>${booking.is_admin_block ? '🚫 BLOCKED - ' : ''}${booking.student_name}</strong>
-                                        <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(booking.booking_time)}</strong>
-                                        ${!booking.is_admin_block ? `
-                                            ${emailLink}
-                                            <small>Class Time: ${booking.class_time}</small>
-                                            <small>Phone: ${booking.phone_number}</small>
-                                        ` : ''}
+                                        <strong>${current.student_name}</strong>
+                                        <strong>${new Date(current.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(current.booking_time)}</strong>
+                                        ${emailLink}
+                                        <small>Class Time: ${current.class_time}</small>
+                                        <small>Phone: ${current.phone_number}</small>
                                     </div>
-                                    <button class="btn-danger" onclick="cancelBooking('${booking.id}')">
-                                        ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
-                                    </button>
+                                    <button class="btn-danger" onclick="cancelBooking('${current.id}')">Cancel</button>
                                 </div>
                             `;
-                        }).join('')}
-                    `;
+                            i++;
+                            continue;
+                        }
+                        // admin block
+                        let blockStart = current.booking_time;
+                        let blockEnd = current.booking_time;
+                        let blockIds = [current.id];
+                        let isOutOfOffice = current.student_name === 'Out of Office';
+                        i++;
+                        while (i < bookingsForDate.length) {
+                            const next = bookingsForDate[i];
+                            if (!next.is_admin_block) break;
+                            const prevTime = parseTime(blockEnd);
+                            const nextTime = parseTime(next.booking_time);
+                            if (Math.abs(nextTime.getTime() - (prevTime.getTime() + 30 * 60000)) > 1) break;
+                            blockEnd = next.booking_time;
+                            blockIds.push(next.id);
+                            i++;
+                        }
+                        const blockText = isOutOfOffice ? 'Out of Office' : 'ADMIN BLOCK';
+                        const rangeText = `${formatTime(blockStart)} - ${formatTime(blockEnd)}`;
+                        const dateStr = new Date(current.booking_date + 'T00:00:00').toLocaleDateString();
+                        bookingsHtml += `
+                            <div class="booking-card">
+                                <div class="booking-info">
+                                    <strong>${dateStr} 🚫 BLOCKED - ${blockText} (${rangeText})</strong>
+                                </div>
+                                <button class="btn-danger" onclick="unblockRange('${blockIds.join("','")}')">Unblock</button>
+                            </div>
+                        `;
+                    }
+                    return dateHtml + bookingsHtml;
                 }).join('');
             } catch (error) {
                 showMessage('Error loading bookings: ' + error.message, 'error');
