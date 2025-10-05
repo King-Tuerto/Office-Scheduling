@@ -424,6 +424,7 @@
 
         function generateTimeSlots(availableBlocks, bookings) {
             const slots = [];
+            const nowPlus24h = new Date(Date.now() + 86400000); // 24 hours from now
             
             availableBlocks.forEach(block => {
                 const start = parseTime(block.start_time);
@@ -434,11 +435,16 @@
                     const timeStr = formatTimeForDisplay(current);
                     const slotTime = formatTime24(current);
                     const isBooked = bookings.some(b => b.booking_time.slice(0, 5) === slotTime);
+                    const slotFullDate = new Date(selectedDate + 'T' + slotTime + ':00');
+                    const isTooSoon = slotFullDate < nowPlus24h;
+                    const available = !isBooked && !isTooSoon;
+                    const status = available ? 'Available' : (isBooked ? 'Booked' : 'Too Soon (24h in advance)');
                     
                     slots.push({
                         time: slotTime,
                         display: timeStr,
-                        available: !isBooked
+                        available: available,
+                        status: status
                     });
 
                     current = addMinutes(current, 30);
@@ -466,7 +472,7 @@
                      data-time="${slot.time}"
                      onclick="${slot.available ? 'toggleSlot(this)' : ''}">
                     <div class="slot-time">${slot.display}</div>
-                    <div class="slot-status">${slot.available ? 'Available' : 'Not Available'}</div>
+                    <div class="slot-status">${slot.status}</div>
                 </div>
             `).join('');
         }
