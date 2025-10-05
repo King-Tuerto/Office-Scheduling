@@ -291,13 +291,18 @@
 
         if (button) {
             const rect = button.getBoundingClientRect();
-            modal.style.position = 'fixed';
-            modal.style.top = (rect.bottom + 5) + 'px';
-            modal.style.left = rect.left + 'px';
-            modal.style.transform = 'none';
-            modal.style.zIndex = '1000';
+            setTimeout(() => {
+                const modalRect = modal.getBoundingClientRect();
+                const buttonRect = button.getBoundingClientRect();
+                const top = buttonRect.top - modalRect.height - 5;
+                const left = buttonRect.left - 150;
+                modal.style.top = top + 'px';
+                modal.style.left = left + 'px';
+                modal.style.transform = 'none';
+                modal.style.position = 'fixed';
+                modal.style.zIndex = '1000';
+            }, 0);
         } else {
-            modal.style.position = 'fixed';
             modal.style.top = '20px';
             modal.style.left = '50%';
             modal.style.transform = 'translateX(-50%)';
@@ -613,4 +618,3 @@
 </script>
 </body>
 </html>
-
