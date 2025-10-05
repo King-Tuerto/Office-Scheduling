@@ -89,6 +89,8 @@
         .btn-danger:hover { background: #f56565; }
         .bookings-list {
             margin-top: 20px;
+            max-height: 400px;
+            overflow-y: auto;
         }
         .booking-card {
             background: white;
@@ -504,7 +506,7 @@
                             if (!next.is_admin_block) break;
                             const prevTime = parseTime(blockEnd);
                             const nextTime = parseTime(next.booking_time);
-                            if (Math.abs(nextTime.getTime() - (prevTime.getTime() + 30 * 60000)) > 1) break;
+                            if (Math.abs(nextTime.getTime() - (prevTime.getTime() + 30 * 60000)) > 1000) break; // Increased tolerance slightly
                             blockEnd = next.booking_time;
                             blockIds.push(next.id);
                             i++;
