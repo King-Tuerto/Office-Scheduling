@@ -1,4 +1,6 @@
-<!DOCTYPE html><html lang="en"><head>
+<!DOCTYPE html>
+<html lang="en">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Panel - Office Hours</title>
@@ -166,6 +168,32 @@
             font-size: 13px;
         }
         .delete-slot-btn:hover { background: #f56565; }
+        #confirmModal {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            z-index: 1000;
+            max-width: 400px;
+            text-align: center;
+        }
+        #confirmModal .btn {
+            width: auto;
+            display: inline-block;
+            margin: 0 5px;
+        }
+        #confirmModal #confirmNo {
+            background: #718096;
+            color: white;
+        }
+        #confirmModal #confirmNo:hover {
+            background: #4a5568;
+        }
     </style>
 </head>
 <body>
@@ -240,11 +268,41 @@
     </div>
 </div></div>
 
+<div id="confirmModal">
+    <p id="confirmText">Are you sure?</p>
+    <div style="text-align: right; margin-top: 15px;">
+        <button id="confirmNo" class="btn">No</button>
+        <button id="confirmYes" class="btn btn-danger">Yes</button>
+    </div>
+</div>
+
 <script>
     const SUPABASE_URL = 'https://vlbgfdabkmaykwzkidom.supabase.co';
     const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsYmdmZGFia21heWt3emtpZG9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MDU2MzIsImV4cCI6MjA3NTE4MTYzMn0.ZW8myPbVweQruU6jyV59dCbYZQlXKZ_RpFipe4hQGkw';
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
     const ADMIN_CODE = '3912';
+
+    let currentConfirmAction = null;
+
+    function showConfirm(message, action) {
+        document.getElementById('confirmText').textContent = message;
+        currentConfirmAction = action;
+        document.getElementById('confirmModal').style.display = 'block';
+    }
+
+    function hideConfirm() {
+        document.getElementById('confirmModal').style.display = 'none';
+        currentConfirmAction = null;
+    }
+
+    document.getElementById('confirmYes').onclick = function() {
+        if (currentConfirmAction) {
+            currentConfirmAction();
+        }
+        hideConfirm();
+    };
+
+    document.getElementById('confirmNo').onclick = hideConfirm;
 
     if (sessionStorage.getItem('adminLoggedIn') === 'true') {
         showAdminPanel();
@@ -399,21 +457,21 @@
     }
 
     async function deleteSlot(id) {
-        if (!confirm('Delete this time block? This will also cancel any bookings in this time.')) return;
+        showConfirm('Delete this time block? This will also cancel any bookings in this time.', async () => {
+            try {
+                const { error } = await supabase
+                    .from('available_slots')
+                    .delete()
+                    .eq('id', id);
 
-        try {
-            const { error } = await supabase
-                .from('available_slots')
-                .delete()
-                .eq('id', id);
+                if (error) throw error;
 
-            if (error) throw error;
-
-            showMessage('Time block deleted', 'success');
-            await loadAvailableSlots();
-        } catch (error) {
-            showMessage('Error deleting slot: ' + error.message, 'error');
-        }
+                showMessage('Time block deleted', 'success');
+                await loadAvailableSlots();
+            } catch (error) {
+                showMessage('Error deleting slot: ' + error.message, 'error');
+            }
+        });
     }
 
     async function loadBookings() {
@@ -482,21 +540,21 @@
     }
 
     async function cancelBooking(id) {
-        if (!confirm('Are you sure?')) return;
+        showConfirm('Are you sure?', async () => {
+            try {
+                const { error } = await supabase
+                    .from('bookings')
+                    .delete()
+                    .eq('id', id);
 
-        try {
-            const { error } = await supabase
-                .from('bookings')
-                .delete()
-                .eq('id', id);
+                if (error) throw error;
 
-            if (error) throw error;
-
-            showMessage('Booking cancelled', 'success');
-            await loadBookings();
-        } catch (error) {
-            showMessage('Error cancelling booking: ' + error.message, 'error');
-        }
+                showMessage('Booking cancelled', 'success');
+                await loadBookings();
+            } catch (error) {
+                showMessage('Error cancelling booking: ' + error.message, 'error');
+            }
+        });
     }
 
     async function loadAllData() {
@@ -537,7 +595,8 @@
     const today = new Date().toISOString().split('T')[0];
     document.getElementById('slotDate').min = today;
     document.getElementById('blockDate').min = today;
-</script></body>
+</script>
+</body>
 </html>
 
 
