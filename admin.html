@@ -554,7 +554,7 @@
                     let current = { ...bookingsForDate[0], ids: [bookingsForDate[0].id], start: bookingsForDate[0].booking_time, end: add30min(bookingsForDate[0].booking_time) };
                     for (let i = 1; i < bookingsForDate.length; i++) {
                         let b = bookingsForDate[i];
-                        let expectedNext = add30min(current.end);
+                        let expectedNext = current.end;
                         if (b.student_name === current.student_name && b.is_admin_block === current.is_admin_block && b.booking_time === expectedNext) {
                             current.end = add30min(b.booking_time);
                             current.ids.push(b.id);
