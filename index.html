@@ -224,7 +224,7 @@
                 <li>Bookings must be made at least 24 hours in advance</li>
                 <li>You may book up to 1 hour (two consecutive 30-min slots) per day</li>
                 <li>To cancel, you must do so at least 24 hours before your appointment</li>
-                <li>If you need to meet today, feel free to stop by during office hours - if I'm available and not with another student, I'm glad to meet!</li>
+                <li>Feel free to stop by during office hours - if I'm available and not with another student, I'm glad to meet!</li>
             </ul>
         </div>
 
@@ -254,6 +254,10 @@
                 <div class="form-group">
                     <label>Full Name *</label>
                     <input type="text" id="studentName" required>
+                </div>
+                <div class="form-group">
+                    <label>Email Address *</label>
+                    <input type="email" id="studentEmail" required placeholder="your.email@school.edu">
                 </div>
                 <div class="form-group">
                     <label>Class Time *</label>
@@ -300,14 +304,18 @@
 
         async function loadAvailableDates() {
             try {
-                const tomorrow = new Date();
-                tomorrow.setDate(tomorrow.getDate() + 1);
-                const tomorrowStr = tomorrow.toISOString().split('T')[0];
+                const today = new Date();
+                const todayStr = today.toISOString().split('T')[0];
+
+                const twoWeeks = new Date();
+                twoWeeks.setDate(twoWeeks.getDate() + 14);
+                const twoWeeksStr = twoWeeks.toISOString().split('T')[0];
 
                 const { data, error } = await supabase
                     .from('available_slots')
                     .select('slot_date')
-                    .gte('slot_date', tomorrowStr)
+                    .gte('slot_date', todayStr)
+                    .lte('slot_date', twoWeeksStr)
                     .order('slot_date');
 
                 if (error) throw error;
@@ -496,12 +504,13 @@
 
         async function createBooking() {
             const name = document.getElementById('studentName').value.trim();
+            const email = document.getElementById('studentEmail').value.trim();
             const hour = document.getElementById('classHour').value;
             const period = document.getElementById('classPeriod').value;
             const phone = document.getElementById('phoneNumber').value.trim();
             const classTime = `${hour} ${period}`;
 
-            if (!name || !hour || !period || !phone) {
+            if (!name || !email || !hour || !period || !phone) {
                 showMessage('Please fill in all fields.', 'error');
                 return;
             }
@@ -513,6 +522,7 @@
             try {
                 const bookingsToCreate = selectedSlots.map(time => ({
                     student_name: name,
+                    email: email,
                     class_time: classTime,
                     phone_number: phone,
                     booking_date: selectedDate,
@@ -589,4 +599,4 @@
         loadAvailableDates();
     </script>
 </body>
-</html>           
+</html>
