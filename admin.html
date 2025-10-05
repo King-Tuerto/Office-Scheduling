@@ -110,6 +110,14 @@
             display: block;
             line-height: 1.5;
         }
+        .email-link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: 500;
+        }
+        .email-link:hover {
+            text-decoration: underline;
+        }
         .success-msg, .error-msg {
             padding: 12px;
             border-radius: 6px;
@@ -176,7 +184,7 @@
     <div id="adminPanel" style="display: none;">
         <div class="container">
             <button class="logout-btn" onclick="logout()">Logout</button>
-            <h1>🔧 Admin Panel</h1>
+            <h1>🔧 Waterman Admin</h1>
             <p class="subtitle">Manage your office hours and bookings</p>
 
             <div id="message"></div>
@@ -309,6 +317,7 @@
                     .from('bookings')
                     .insert({
                         student_name: 'ADMIN BLOCK',
+                        email: 'N/A',
                         class_time: 'N/A',
                         phone_number: 'N/A',
                         booking_date: date,
@@ -416,21 +425,25 @@
 
                     return `
                         <div class="date-header">${formattedDate}</div>
-                        ${bookingsForDate.map(booking => `
-                            <div class="booking-card">
-                                <div class="booking-info">
-                                    <strong>${booking.is_admin_block ? '🚫 BLOCKED - ' : ''}${booking.student_name}</strong>
-                                    <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(booking.booking_time)}</strong>
-                                    ${!booking.is_admin_block ? `
-                                        <small>Class Time: ${booking.class_time}</small>
-                                        <small>Phone: ${booking.phone_number}</small>
-                                    ` : ''}
+                        ${bookingsForDate.map(booking => {
+                            const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
+                            return `
+                                <div class="booking-card">
+                                    <div class="booking-info">
+                                        <strong>${booking.is_admin_block ? '🚫 BLOCKED - ' : ''}${booking.student_name}</strong>
+                                        <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(booking.booking_time)}</strong>
+                                        ${!booking.is_admin_block ? `
+                                            ${emailLink}
+                                            <small>Class Time: ${booking.class_time}</small>
+                                            <small>Phone: ${booking.phone_number}</small>
+                                        ` : ''}
+                                    </div>
+                                    <button class="btn-danger" onclick="cancelBooking('${booking.id}')">
+                                        ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
+                                    </button>
                                 </div>
-                                <button class="btn-danger" onclick="cancelBooking('${booking.id}')">
-                                    ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
-                                </button>
-                            </div>
-                        `).join('')}
+                            `;
+                        }).join('')}
                     `;
                 }).join('');
             } catch (error) {
