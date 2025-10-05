@@ -296,6 +296,7 @@
         let selectedSlots = [];
         let selectedDate = '';
         let availableDates = [];
+        let subscription = null;
 
         async function loadAvailableDates() {
             try {
@@ -346,7 +347,30 @@
             selectedDate = date;
             selectedSlots = [];
             renderAvailableDates();
+            
+            // Unsubscribe from previous subscription
+            if (subscription) {
+                supabase.removeChannel(subscription);
+            }
+            
             await loadSlots();
+            
+            // Subscribe to real-time changes for this date
+            subscription = supabase
+                .channel(`bookings:${date}`)
+                .on(
+                    'postgres_changes',
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'bookings',
+                        filter: `booking_date=eq.${date}`
+                    },
+                    () => {
+                        loadSlots();
+                    }
+                )
+                .subscribe();
         }
 
         document.getElementById('bookBtn').addEventListener('click', () => {
@@ -475,6 +499,11 @@
             const phone = document.getElementById('phoneNumber').value;
             const classTime = `${hour} ${period}`;
 
+            if (!name || !hour || !period || !phone) {
+                showMessage('Please fill in all fields.', 'error');
+                return;
+            }
+
             try {
                 const bookingsToCreate = selectedSlots.map(time => ({
                     student_name: name,
@@ -491,14 +520,11 @@
 
                 if (error) throw error;
 
-                showMessage('✅ Booking confirmed! See you then.', 'success');
+                showMessage(`✅ Booking confirmed for ${name}! See you then.`, 'success');
                 closeModal();
                 document.getElementById('bookingForm').reset();
                 selectedSlots = [];
-                // Small delay to ensure DB consistency
-                setTimeout(async () => {
-                    await loadSlots();
-                }, 500);
+                await loadSlots();
             } catch (error) {
                 showMessage('Error creating booking: ' + error.message, 'error');
             }
@@ -534,6 +560,13 @@
             hours = hours % 12 || 12;
             return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
         }
+
+        // Cleanup subscription on page unload
+        window.addEventListener('beforeunload', () => {
+            if (subscription) {
+                supabase.removeChannel(subscription);
+            }
+        });
 
         loadAvailableDates();
     </script>
