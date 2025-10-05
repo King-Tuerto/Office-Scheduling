@@ -224,9 +224,9 @@
         <div class="info-box">
             <strong>📌 Important Notes:</strong>
             <ul>
-                <li>Bookings must be made at least 24 hours in advance</li>
+                <li>Bookings must be made at least 18 hours in advance</li>
                 <li>You may book up to 1 hour (two consecutive 30-min slots) per day</li>
-                <li>To cancel, you must do so at least 24 hours before your appointment so another student can take that time</li>
+                <li>To cancel, you must do so at least 18 hours before your appointment so another student can take that time</li>
                 <li>If you need to meet same-day, feel free to stop by during scheduled office hours - if I'm available and not with another student, I'm glad to meet!</li>
             </ul>
         </div>
@@ -424,7 +424,7 @@
 
         function generateTimeSlots(availableBlocks, bookings) {
             const slots = [];
-            const nowPlus24h = new Date(Date.now() + 86400000); // 24 hours from now
+            const nowPlus18h = new Date(Date.now() + 18 * 60 * 60 * 1000); // 18 hours from now
             
             availableBlocks.forEach(block => {
                 const start = parseTime(block.start_time);
@@ -436,9 +436,22 @@
                     const slotTime = formatTime24(current);
                     const isBooked = bookings.some(b => b.booking_time.slice(0, 5) === slotTime);
                     const slotFullDate = new Date(selectedDate + 'T' + slotTime + ':00');
-                    const isTooSoon = slotFullDate < nowPlus24h;
+                    const isTooSoon = slotFullDate < nowPlus18h;
                     const available = !isBooked && !isTooSoon;
-                    const status = available ? 'Available' : (isBooked ? 'Booked' : '24h rule restricted - stop by office if urgent');
+                    
+                    let status = 'Available';
+                    if (!available) {
+                        if (isBooked) {
+                            const booking = bookings.find(b => b.booking_time.slice(0, 5) === slotTime);
+                            if (booking && booking.is_admin_block && booking.student_name === 'Out of Office') {
+                                status = 'Out of Office';
+                            } else {
+                                status = 'Booked';
+                            }
+                        } else {
+                            status = '18h rule restricted - stop by office if urgent';
+                        }
+                    }
                     
                     slots.push({
                         time: slotTime,
