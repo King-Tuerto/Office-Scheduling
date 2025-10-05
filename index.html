@@ -470,4 +470,147 @@
 
         async function createBooking() {
             const name = document.getElementById('studentName').value;
-            const hour
+           const hour = document.getElementById('classHour').value;
+            const period = document.getElementById('classPeriod').value;
+            const phone = document.getElementById('phoneNumber').value;
+            const classTime = `${hour} ${period}`;
+
+            try {
+                const bookingsToCreate = selectedSlots.map(time => ({
+                    student_name: name,
+                    class_time: classTime,
+                    phone_number: phone,
+                    booking_date: selectedDate,
+                    booking_time: time,
+                    is_admin_block: false
+                }));
+
+                const { error } = await supabase
+                    .from('bookings')
+                    .insert(bookingsToCreate);
+
+                if (error) throw error;
+
+                showMessage('✅ Booking confirmed! See you then.', 'success');
+                closeModal();
+                document.getElementById('bookingForm').reset();
+                selectedSlots = [];
+                await loadSlots();
+                await loadMyBookings();
+            } catch (error) {
+                showMessage('Error creating booking: ' + error.message, 'error');
+            }
+        }
+
+        async function loadMyBookings() {
+            try {
+                const { data, error } = await supabase
+                    .from('bookings')
+                    .select('*')
+                    .eq('is_admin_block', false)
+                    .gte('booking_date', new Date().toISOString().split('T')[0])
+                    .order('booking_date')
+                    .order('booking_time');
+
+                if (error) throw error;
+
+                myBookings = data || [];
+                renderMyBookings();
+            } catch (error) {
+                console.error('Error loading bookings:', error);
+            }
+        }
+
+        function renderMyBookings() {
+            const section = document.getElementById('myBookingsSection');
+            const list = document.getElementById('myBookingsList');
+
+            if (myBookings.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = myBookings.map(booking => {
+                const canCancel = canCancelBooking(booking.booking_date, booking.booking_time);
+                return `
+                    <div class="booking-card">
+                        <div>
+                            <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTimeForDisplay(parseTime(booking.booking_time))}</strong>
+                            <div style="font-size: 0.9em; color: #718096; margin-top: 5px;">
+                                ${booking.student_name} | Class: ${booking.class_time}
+                            </div>
+                        </div>
+                        <button class="cancel-btn" 
+                                onclick="cancelBooking('${booking.id}')"
+                                ${!canCancel ? 'disabled' : ''}>
+                            ${canCancel ? 'Cancel' : 'Too Late'}
+                        </button>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function canCancelBooking(date, time) {
+            const bookingDateTime = new Date(date + 'T' + time);
+            const now = new Date();
+            const hoursDiff = (bookingDateTime - now) / (1000 * 60 * 60);
+            return hoursDiff >= 24;
+        }
+
+        async function cancelBooking(id) {
+            if (!confirm('Are you sure you want to cancel this booking?')) return;
+
+            try {
+                const { error } = await supabase
+                    .from('bookings')
+                    .delete()
+                    .eq('id', id);
+
+                if (error) throw error;
+
+                showMessage('Booking cancelled successfully', 'success');
+                await loadMyBookings();
+                if (selectedDate) await loadSlots();
+            } catch (error) {
+                showMessage('Error cancelling booking: ' + error.message, 'error');
+            }
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.className = type === 'error' ? 'error-msg' : 'success-msg';
+            msg.textContent = text;
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 5000);
+        }
+
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const date = new Date();
+            date.setHours(hours, minutes, 0, 0);
+            return date;
+        }
+
+        function addMinutes(date, minutes) {
+            return new Date(date.getTime() + minutes * 60000);
+        }
+
+        function formatTime24(date) {
+            return date.toTimeString().slice(0, 5);
+        }
+
+        function formatTimeForDisplay(date) {
+            let hours = date.getHours();
+            const minutes = date.getMinutes();
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            hours = hours % 12 || 12;
+            return `${hours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+        }
+
+        loadAvailableDates();
+        loadMyBookings();
+    </script>
+</body>
+</html>
+
