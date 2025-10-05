@@ -32,6 +32,7 @@
         h1 { color: #2d3748; margin-bottom: 10px; font-size: 2em; }
         h2 { color: #2d3748; margin-bottom: 20px; font-size: 1.5em; }
         h3 { color: #2d3748; margin-bottom: 15px; font-size: 1.2em; }
+        .date-header { color: #2d3748; margin-bottom: 15px; font-size: 1.2em; font-weight: 600; }
         .subtitle { color: #718096; margin-bottom: 25px; }
         .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-bottom: 30px; }
         .card {
@@ -394,21 +395,44 @@
                     return;
                 }
 
-                list.innerHTML = data.map(booking => `
-                    <div class="booking-card">
-                        <div class="booking-info">
-                            <strong>${booking.is_admin_block ? '🚫 BLOCKED - ' : ''}${booking.student_name}</strong>
-                            ${!booking.is_admin_block ? `
-                                <small>Class Time: ${booking.class_time}</small>
-                                <small>Phone: ${booking.phone_number}</small>
-                            ` : ''}
-                            <small>Date: ${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(booking.booking_time)}</small>
-                        </div>
-                        <button class="btn-danger" onclick="cancelBooking('${booking.id}')">
-                            ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
-                        </button>
-                    </div>
-                `).join('');
+                // Group bookings by date
+                const grouped = data.reduce((acc, booking) => {
+                    const dateKey = booking.booking_date;
+                    if (!acc[dateKey]) acc[dateKey] = [];
+                    acc[dateKey].push(booking);
+                    return acc;
+                }, {});
+
+                // Render grouped by date
+                list.innerHTML = Object.keys(grouped).map(dateKey => {
+                    const dateObj = new Date(dateKey + 'T00:00:00');
+                    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    });
+                    const bookingsForDate = grouped[dateKey];
+
+                    return `
+                        <div class="date-header">${formattedDate}</div>
+                        ${bookingsForDate.map(booking => `
+                            <div class="booking-card">
+                                <div class="booking-info">
+                                    <strong>${booking.is_admin_block ? '🚫 BLOCKED - ' : ''}${booking.student_name}</strong>
+                                    <strong>${new Date(booking.booking_date + 'T00:00:00').toLocaleDateString()} at ${formatTime(booking.booking_time)}</strong>
+                                    ${!booking.is_admin_block ? `
+                                        <small>Class Time: ${booking.class_time}</small>
+                                        <small>Phone: ${booking.phone_number}</small>
+                                    ` : ''}
+                                </div>
+                                <button class="btn-danger" onclick="cancelBooking('${booking.id}')">
+                                    ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
+                                </button>
+                            </div>
+                        `).join('')}
+                    `;
+                }).join('');
             } catch (error) {
                 showMessage('Error loading bookings: ' + error.message, 'error');
             }
