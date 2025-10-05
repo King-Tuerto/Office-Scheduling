@@ -437,6 +437,11 @@
                 current = addMinutes(current, 30);
             }
 
+            if (blocksToInsert.length === 0) {
+                showMessage('Range too short. Minimum 30 minutes.', 'error');
+                return;
+            }
+
             const { error } = await supabase
                 .from('bookings')
                 .insert(blocksToInsert);
@@ -540,7 +545,7 @@
                     month: 'long', 
                     day: 'numeric' 
                 });
-                const shortDate = new Date(dateKey + 'T00:00:00').toLocaleDateString();
+                const shortDate = dateObj.toLocaleDateString();
                 const bookingsForDate = grouped[dateKey];
 
                 return `
