@@ -297,9 +297,9 @@
     </div>
 
     <script>
-        const SUPABASE_URL = 'https://vlbgfdabkmaykwzkidom.supabase.co';
-        const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsYmdmZGFia21heWt3emtpZG9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MDU2MzIsImV4cCI6MjA3NTE4MTYzMn0.ZW8myPbVweQruU6jyV59dCbYZQlXKZ_RpFipe4hQGkw';
-        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+        // Fixed Supabase client creation for current version
+        const { createClient } = supabase;
+        const client = createClient('https://vlbgfdabkmaykwzkidom.supabase.co', 'sb_publishable_XIwncNfXpdSv_Kyth3aWYg_-IoWjui-');
 
         let selectedSlots = [];
         let selectedDate = '';
@@ -315,7 +315,7 @@
                 twoWeeks.setDate(twoWeeks.getDate() + 14);
                 const twoWeeksStr = twoWeeks.toISOString().split('T')[0];
 
-                const { data, error } = await supabase
+                const { data, error } = await client
                     .from('available_slots')
                     .select('slot_date')
                     .gte('slot_date', todayStr)
@@ -361,12 +361,12 @@
             renderAvailableDates();
             
             if (subscription) {
-                supabase.removeChannel(subscription);
+                client.removeChannel(subscription);
             }
             
             await loadSlots();
             
-            subscription = supabase
+            subscription = client
                 .channel(`bookings:${date}`)
                 .on(
                     'postgres_changes',
@@ -402,14 +402,14 @@
             document.getElementById('slotsSection').style.display = 'block';
 
             try {
-                const { data: availableBlocks, error: blocksError } = await supabase
+                const { data: availableBlocks, error: blocksError } = await client
                     .from('available_slots')
                     .select('*')
                     .eq('slot_date', selectedDate);
 
                 if (blocksError) throw blocksError;
 
-                const { data: bookings, error: bookingsError } = await supabase
+                const { data: bookings, error: bookingsError } = await client
                     .from('bookings')
                     .select('*')
                     .eq('booking_date', selectedDate);
@@ -553,7 +553,7 @@
                     is_admin_block: false
                 }));
 
-                const { error } = await supabase
+                const { error } = await client
                     .from('bookings')
                     .insert(bookingsToCreate);
 
@@ -615,7 +615,7 @@
 
         window.addEventListener('beforeunload', () => {
             if (subscription) {
-                supabase.removeChannel(subscription);
+                client.removeChannel(subscription);
             }
         });
 
