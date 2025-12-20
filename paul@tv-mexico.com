@@ -313,4 +313,331 @@
                     const buttonRect = button.getBoundingClientRect();
                     const top = buttonRect.top - modalRect.height - 5;
                     const left = buttonRect.left - 150;
-                    modal.style.top = top
+                    modal.style.top = top + 'px';
+                    modal.style.left = left + 'px';
+                    modal.style.transform = 'none';
+                    modal.style.position = 'fixed';
+                    modal.style.zIndex = '1000';
+                }, 0);
+            } else {
+                modal.style.top = '20px';
+                modal.style.left = '50%';
+                modal.style.transform = 'translateX(-50%)';
+            }
+        }
+
+        function hideConfirm() {
+            document.getElementById('confirmModal').style.display = 'none';
+            currentConfirmAction = null;
+            currentConfirmButton = null;
+        }
+
+        document.getElementById('confirmYes').onclick = function() {
+            if (currentConfirmAction) {
+                currentConfirmAction();
+            }
+            hideConfirm();
+        };
+
+        document.getElementById('confirmNo').onclick = hideConfirm;
+
+        if (sessionStorage.getItem('adminLoggedIn') === 'true') {
+            showAdminPanel();
+        }
+
+        function login() {
+            const code = document.getElementById('accessCode').value;
+            
+            if (code === ADMIN_CODE) {
+                sessionStorage.setItem('adminLoggedIn', 'true');
+                showAdminPanel();
+            } else {
+                const error = document.getElementById('loginError');
+                error.className = 'error-msg';
+                error.textContent = 'Invalid access code';
+                error.style.display = 'block';
+            }
+        }
+
+        function showAdminPanel() {
+            document.getElementById('loginScreen').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            loadAllData();
+        }
+
+        function logout() {
+            sessionStorage.removeItem('adminLoggedIn');
+            location.reload();
+        }
+
+        async function addTimeBlock() {
+            const date = document.getElementById('slotDate').value;
+            const startTime = document.getElementById('startTime').value;
+            const endTime = document.getElementById('endTime').value;
+
+            if (!date || !startTime || !endTime) {
+                showMessage('Please fill in all fields', 'error');
+                return;
+            }
+
+            if (startTime >= endTime) {
+                showMessage('End time must be after start time', 'error');
+                return;
+            }
+
+            try {
+                const { error } = await client
+                    .from('available_slots')
+                    .insert({
+                        slot_date: date,
+                        start_time: startTime,
+                        end_time: endTime
+                    });
+
+                if (error) throw error;
+
+                showMessage('Time block added successfully', 'success');
+                document.getElementById('slotDate').value = '';
+                document.getElementById('startTime').value = '';
+                document.getElementById('endTime').value = '';
+                await loadAvailableSlots();
+            } catch (error) {
+                showMessage('Error adding time block: ' + error.message, 'error');
+            }
+        }
+
+        async function blockTimeRange() {
+            const date = document.getElementById('blockDate').value;
+            const startTime = document.getElementById('blockStartTime').value;
+            const endTime = document.getElementById('blockEndTime').value;
+            const isOutOfOffice = document.getElementById('outOfOffice').checked;
+
+            if (!date || !startTime || !endTime) {
+                showMessage('Please fill in all fields', 'error');
+                return;
+            }
+
+            if (startTime >= endTime) {
+                showMessage('End time must be after start time', 'error');
+                return;
+            }
+
+            try {
+                // Generate 30-min slots between start and end
+                const start = parseTime(startTime);
+                const end = parseTime(endTime);
+                let current = start;
+                const blocksToInsert = [];
+
+                while (current < end) {
+                    const slotTime = formatTime24(current);
+                    blocksToInsert.push({
+                        student_name: isOutOfOffice ? 'Out of Office' : 'ADMIN BLOCK',
+                        email: 'N/A',
+                        class_time: 'N/A',
+                        phone_number: 'N/A',
+                        booking_date: date,
+                        booking_time: slotTime,
+                        is_admin_block: true
+                    });
+                    current = addMinutes(current, 30);
+                }
+
+                if (blocksToInsert.length === 0) {
+                    showMessage('Range too short. Minimum 30 minutes.', 'error');
+                    return;
+                }
+
+                const { error } = await client
+                    .from('bookings')
+                    .insert(blocksToInsert);
+
+                if (error) throw error;
+
+                showMessage(`${blocksToInsert.length} slot(s) blocked successfully`, 'success');
+                document.getElementById('blockDate').value = '';
+                document.getElementById('blockStartTime').value = '';
+                document.getElementById('blockEndTime').value = '';
+                document.getElementById('outOfOffice').checked = false;
+                await loadBookings();
+            } catch (error) {
+                showMessage('Error blocking range: ' + error.message, 'error');
+            }
+        }
+
+        async function loadAvailableSlots() {
+            try {
+                const { data, error } = await client
+                    .from('available_slots')
+                    .select('*')
+                    .gte('slot_date', new Date().toISOString().split('T')[0])
+                    .order('slot_date')
+                    .order('start_time');
+
+                if (error) throw error;
+
+                const list = document.getElementById('slotsList');
+                
+                if (!data || data.length === 0) {
+                    list.innerHTML = '<p style="color: #718096; padding: 10px; text-align: center;">No time blocks scheduled</p>';
+                    return;
+                }
+
+                list.innerHTML = data.map(slot => `
+                    <div class="slot-card">
+                        <div>
+                            <strong>${new Date(slot.slot_date + 'T00:00:00').toLocaleDateString()}</strong>
+                            <small>${formatTime(slot.start_time)} - ${formatTime(slot.end_time)}</small>
+                        </div>
+                        <button class="delete-slot-btn" onclick="deleteSlot('${slot.id}', this)">Delete</button>
+                    </div>
+                `).join('');
+            } catch (error) {
+                showMessage('Error loading slots: ' + error.message, 'error');
+            }
+        }
+
+        async function deleteSlot(id, button) {
+            showConfirm('Delete this time block? This will also cancel any bookings in this time.', async () => {
+                try {
+                    const { error } = await client
+                        .from('available_slots')
+                        .delete()
+                        .eq('id', id);
+
+                    if (error) throw error;
+
+                    showMessage('Time block deleted', 'success');
+                    await loadAvailableSlots();
+                } catch (error) {
+                    showMessage('Error deleting slot: ' + error.message, 'error');
+                }
+            }, button);
+        }
+
+        async function loadBookings() {
+            try {
+                const { data, error } = await client
+                    .from('bookings')
+                    .select('*')
+                    .gte('booking_date', new Date().toISOString().split('T')[0])
+                    .order('booking_date')
+                    .order('booking_time');
+
+                if (error) throw error;
+
+                const list = document.getElementById('bookingsList');
+                
+                if (!data || data.length === 0) {
+                    list.innerHTML = '<p style="color: #718096; padding: 20px; text-align: center;">No upcoming bookings</p>';
+                    return;
+                }
+
+                // Group bookings by date
+                const grouped = data.reduce((acc, booking) => {
+                    const dateKey = booking.booking_date;
+                    if (!acc[dateKey]) acc[dateKey] = [];
+                    acc[dateKey].push(booking);
+                    return acc;
+                }, {});
+
+                // Render grouped by date
+                list.innerHTML = Object.keys(grouped).map(dateKey => {
+                    const dateObj = new Date(dateKey + 'T00:00:00');
+                    const formattedDate = dateObj.toLocaleDateString('en-US', { 
+                        weekday: 'long', 
+                        year: 'numeric', 
+                        month: 'long', 
+                        day: 'numeric' 
+                    });
+                    const shortDate = dateObj.toLocaleDateString();
+                    const bookingsForDate = grouped[dateKey];
+
+                    return `
+                        <div class="date-header">${formattedDate}</div>
+                        ${bookingsForDate.map(booking => {
+                            const endTime = add30min(booking.booking_time);
+                            const emailLink = booking.email ? `<small><a href="mailto:${booking.email}?subject=Office Hours Follow-up" class="email-link" target="_blank">${booking.email}</a></small>` : '<small>Email: N/A</small>';
+                            return `
+                                <div class="booking-card">
+                                    <div class="booking-info">
+                                        <strong>${booking.is_admin_block ? ' BLOCKED - ' : ''}${booking.student_name}</strong>
+                                        <strong>${shortDate} from ${formatTime(booking.booking_time)} to ${formatTime(endTime)}</strong>
+                                        ${!booking.is_admin_block ? `
+                                            ${emailLink}
+                                            <small>Class Time: ${booking.class_time}</small>
+                                            <small>Phone: ${booking.phone_number}</small>
+                                        ` : ''}
+                                    </div>
+                                    <button class="btn-danger" onclick="cancelBooking('${booking.id}', this)">
+                                        ${booking.is_admin_block ? 'Unblock' : 'Cancel'}
+                                    </button>
+                                </div>
+                            `;
+                        }).join('')}
+                    `;
+                }).join('');
+            } catch (error) {
+                showMessage('Error loading bookings: ' + error.message, 'error');
+            }
+        }
+
+        async function cancelBooking(id, button) {
+            showConfirm('Are you sure?', async () => {
+                try {
+                    const { error } = await client
+                        .from('bookings')
+                        .delete()
+                        .eq('id', id);
+
+                    if (error) throw error;
+
+                    showMessage('Booking cancelled', 'success');
+                    await loadBookings();
+                } catch (error) {
+                    showMessage('Error cancelling booking: ' + error.message, 'error');
+                }
+            }, button);
+        }
+
+        async function loadAllData() {
+            await loadAvailableSlots();
+            await loadBookings();
+        }
+
+        function formatTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const ampm = hours >= 12 ? 'PM' : 'AM';
+            const displayHours = hours % 12 || 12;
+            return `${displayHours}:${minutes.toString().padStart(2, '0')} ${ampm}`;
+        }
+
+        function parseTime(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            const date = new Date();
+            date.setHours(hours, minutes, 0, 0);
+            return date;
+        }
+
+        function addMinutes(date, minutes) {
+            return new Date(date.getTime() + minutes * 60000);
+        }
+
+        function formatTime24(date) {
+            return date.toTimeString().slice(0, 5);
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.className = type === 'error' ? 'error-msg' : 'success-msg';
+            msg.textContent = text;
+            msg.style.display = 'block';
+            setTimeout(() => msg.style.display = 'none', 5000);
+        }
+
+        const today = new Date().toISOString().split('T')[0];
+        document.getElementById('slotDate').min = today;
+        document.getElementById('blockDate').min = today;
+    </script>
+</body>
+</html>
