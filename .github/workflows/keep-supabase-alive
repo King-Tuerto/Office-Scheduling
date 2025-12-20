@@ -1,0 +1,19 @@
+name: Keep Supabase Project Active
+
+on:
+  schedule:
+    - cron: '0 8 * * 1,4'  # Every Monday and Thursday at 8:00 AM UTC
+  workflow_dispatch:  # Lets you run it manually anytime
+
+jobs:
+  ping-supabase:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send ping to Supabase
+        env:
+          SUPABASE_URL: https://vlbgfdabkmaykwzkidom.supabase.co
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+        run: |
+          curl "${SUPABASE_URL}/rest/v1/available_slots?select=id&limit=1" \
+            -H "apikey: ${SUPABASE_ANON_KEY}" \
+            -H "Authorization: Bearer ${SUPABASE_ANON_KEY}"
