@@ -14,9 +14,11 @@ jobs:
           SUPABASE_URL: https://vlbgfdabknaykwzkjdom.supabase.co
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
         run: |
-          echo "Attempting to ping Supabase REST API..."
-          curl -v "${SUPABASE_URL}/rest/v1/available_slots?select=*&limit=1" \
+          echo "Pinging Supabase GraphQL API to keep project active..."
+          curl -v "https://vlbgfdabknaykwzkjdom.supabase.co/graphql/v1" \
             -H "apikey: ${SUPABASE_SERVICE_KEY}" \
-            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" || echo "Curl command failed"
+            -H "Authorization: Bearer ${SUPABASE_SERVICE_KEY}" \
+            -H "Content-Type: application/json" \
+            --data '{"query": "query { available_slots(limit: 1) { id } }"}' || echo "Request failed (but may still count as activity)"
           
-          echo "Full curl output above (look for HTTP code or error details)"
+          echo "Ping complete. This should register as database activity."
