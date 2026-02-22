@@ -1,0 +1,11 @@
+[functions.send-booking-confirmation]
+verify_jwt = false
+
+[functions.send-cancellation-notice]
+verify_jwt = false
+
+[functions.send-24h-reminders]
+verify_jwt = false
+
+[functions.cancel-booking]
+verify_jwt = false

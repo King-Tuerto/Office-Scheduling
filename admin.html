@@ -278,10 +278,12 @@
     <script>
         const SUPABASE_URL = 'https://vlbgfdabkmaykwzkidom.supabase.co';
         const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InZsYmdmZGFia21heWt3emtpZG9tIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTk2MDU2MzIsImV4cCI6MjA3NTE4MTYzMn0.ZW8myPbVweQruU6jyV59dCbYZQlXKZ_RpFipe4hQGkw';
-        
+
         // New way to create the client with current Supabase CDN
         const { createClient } = supabase;
         const client = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+        const ADMIN_CODE_VALUE = '3912'; // Used when calling Edge Functions
         
         const ADMIN_CODE = '3912';
 
@@ -583,16 +585,49 @@
         }
 
         async function cancelBooking(id, button) {
-            showConfirm('Are you sure?', async () => {
+            // Determine if this is an admin block (no email needed) or a real student booking
+            const isAdminBlock = button && button.textContent.trim() === 'Unblock';
+
+            const confirmMsg = isAdminBlock
+                ? 'Remove this blocked time?'
+                : 'Cancel this booking and notify the student by email?';
+
+            showConfirm(confirmMsg, async () => {
                 try {
-                    const { error } = await client
-                        .from('bookings')
-                        .delete()
-                        .eq('id', id);
+                    if (isAdminBlock) {
+                        // Admin blocks: just delete from DB directly, no email
+                        const { error } = await client
+                            .from('bookings')
+                            .delete()
+                            .eq('id', id);
+                        if (error) throw error;
+                        showMessage('Time block removed', 'success');
+                    } else {
+                        // Student bookings: call Edge Function which handles
+                        // email notification, Outlook calendar removal, and DB delete
+                        const response = await fetch(
+                            `${SUPABASE_URL}/functions/v1/send-cancellation-notice`,
+                            {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json',
+                                    'Authorization': `Bearer ${SUPABASE_KEY}`,
+                                },
+                                body: JSON.stringify({
+                                    bookingId: id,
+                                    adminPassword: ADMIN_CODE_VALUE,
+                                }),
+                            }
+                        );
 
-                    if (error) throw error;
+                        if (!response.ok) {
+                            const err = await response.json().catch(() => ({}));
+                            throw new Error(err.error || 'Cancellation request failed');
+                        }
 
-                    showMessage('Booking cancelled', 'success');
+                        showMessage('Booking cancelled and student notified', 'success');
+                    }
+
                     await loadBookings();
                 } catch (error) {
                     showMessage('Error cancelling booking: ' + error.message, 'error');

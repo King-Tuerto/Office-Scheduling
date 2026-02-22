@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Office Hours - Cancellation</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+      padding: 40px;
+      max-width: 500px;
+      width: 100%;
+      text-align: center;
+    }
+    .icon { font-size: 3em; margin-bottom: 16px; }
+    h1 { margin-bottom: 16px; font-size: 1.6em; }
+    p { color: #4a5568; line-height: 1.6; margin-bottom: 12px; }
+    a { color: #667eea; }
+    .footer { color: #a0aec0; font-size: 0.85em; margin-top: 24px; }
+    .success h1 { color: #22543d; }
+    .error h1 { color: #742a2a; }
+    .warning h1 { color: #744210; }
+  </style>
+</head>
+<body>
+  <div class="card" id="card">
+    <div class="icon" id="icon">⏳</div>
+    <h1 id="heading">Processing...</h1>
+    <div id="message"></div>
+    <p class="footer">Waterman Office Hours &middot; CCOB 42-125 &middot; Grand Canyon University</p>
+  </div>
+
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const status = params.get('status');
+    const date = params.get('date') || '';
+    const time = params.get('time') || '';
+    const email = params.get('email') || '';
+
+    const card = document.getElementById('card');
+    const icon = document.getElementById('icon');
+    const heading = document.getElementById('heading');
+    const message = document.getElementById('message');
+
+    if (status === 'success') {
+      card.classList.add('success');
+      icon.textContent = '✅';
+      heading.textContent = 'Appointment cancelled';
+      message.innerHTML = `
+        <p>Your office hours appointment on <strong>${date} at ${time}</strong> has been cancelled.</p>
+        <p>A confirmation email has been sent to ${email}.</p>
+        <p>The slot is now open for other students. You are welcome to rebook anytime!</p>
+      `;
+    } else if (status === 'toolate') {
+      card.classList.add('warning');
+      icon.textContent = '⚠️';
+      heading.textContent = 'Too late to cancel online';
+      message.innerHTML = `
+        <p>Your appointment on <strong>${date} at ${time}</strong> is within 2 hours and can no longer be cancelled online.</p>
+        <p>Please contact Prof. Waterman directly at <a href="mailto:paul.waterman@gcu.edu">paul.waterman@gcu.edu</a>.</p>
+      `;
+    } else if (status === 'notfound') {
+      card.classList.add('error');
+      icon.textContent = '❌';
+      heading.textContent = 'Appointment not found';
+      message.innerHTML = `
+        <p>This cancellation link is invalid or the appointment has already been cancelled.</p>
+        <p>Contact Prof. Waterman at <a href="mailto:paul.waterman@gcu.edu">paul.waterman@gcu.edu</a> if you need help.</p>
+      `;
+    } else if (status === 'invalid') {
+      card.classList.add('error');
+      icon.textContent = '❌';
+      heading.textContent = 'Invalid link';
+      message.innerHTML = `
+        <p>This cancellation link is not valid.</p>
+        <p>Contact Prof. Waterman at <a href="mailto:paul.waterman@gcu.edu">paul.waterman@gcu.edu</a>.</p>
+      `;
+    } else {
+      card.classList.add('error');
+      icon.textContent = '❌';
+      heading.textContent = 'Something went wrong';
+      message.innerHTML = `
+        <p>An error occurred. Please try again or contact Prof. Waterman at <a href="mailto:paul.waterman@gcu.edu">paul.waterman@gcu.edu</a>.</p>
+      `;
+    }
+  </script>
+</body>
+</html>

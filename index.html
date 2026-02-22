@@ -227,7 +227,7 @@
             <ul>
                 <li>Bookings must be made at least 18 hours in advance</li>
                 <li>You may book up to 1 hour (two consecutive 30-min slots) per day</li>
-                <li>To cancel, you must do so at least 18 hours before your appointment so another student can take that time</li>
+                <li>To cancel, you may do so up to 2 hours before your appointment using the link in your confirmation email</li>
                 <li>If you need to meet same-day, feel free to stop by during scheduled office hours - if I'm available and not with another student, I'm glad to meet!</li>
             </ul>
         </div>
@@ -299,7 +299,9 @@
     <script>
         // Fixed Supabase client creation for current version
         const { createClient } = supabase;
-        const client = createClient('https://vlbgfdabkmaykwzkidom.supabase.co', 'sb_publishable_XIwncNfXpdSv_Kyth3aWYg_-IoWjui-');
+        const SUPABASE_URL = 'https://vlbgfdabkmaykwzkidom.supabase.co';
+        const SUPABASE_ANON_KEY = 'sb_publishable_XIwncNfXpdSv_Kyth3aWYg_-IoWjui-';
+        const client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         let selectedSlots = [];
         let selectedDate = '';
@@ -553,9 +555,10 @@
                     is_admin_block: false
                 }));
 
-                const { error } = await client
+                const { data: insertedBookings, error } = await client
                     .from('bookings')
-                    .insert(bookingsToCreate);
+                    .insert(bookingsToCreate)
+                    .select();
 
                 if (error) {
                     if (error.code === '23505') {  // Unique violation
@@ -567,9 +570,41 @@
                     return;
                 }
 
-                showMessage(`✅ Booking confirmed for ${name}! See you then.`, 'success');
+                showMessage(`✅ Booking confirmed for ${name}! A confirmation email is on its way.`, 'success');
                 closeModal();
                 document.getElementById('bookingForm').reset();
+
+                // Send confirmation email + add to Outlook calendar via Edge Function
+                // Fire-and-forget: email/calendar failure won't affect the booking itself
+                if (insertedBookings && insertedBookings.length > 0) {
+                    const startTime = selectedSlots[0];
+                    const lastSlot = selectedSlots[selectedSlots.length - 1];
+                    // End time = last slot + 30 minutes
+                    const [lh, lm] = lastSlot.split(':').map(Number);
+                    const endMinutes = lh * 60 + lm + 30;
+                    const endTime = `${Math.floor(endMinutes / 60).toString().padStart(2, '0')}:${(endMinutes % 60).toString().padStart(2, '0')}`;
+
+                    const firstBookingId = insertedBookings[0].id;
+
+                    fetch(`${SUPABASE_URL}/functions/v1/send-booking-confirmation`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
+                        },
+                        body: JSON.stringify({
+                            bookingId: firstBookingId,
+                            name: name,
+                            email: email,
+                            phone: phone,
+                            classTime: classTime,
+                            date: selectedDate,
+                            startTime: startTime,
+                            endTime: endTime,
+                        }),
+                    }).catch(err => console.error('Notification error (booking still confirmed):', err));
+                }
+
                 selectedSlots = [];
                 setTimeout(async () => {
                     await loadSlots();
